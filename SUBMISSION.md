@@ -15,10 +15,10 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 - GitHub repository: https://github.com/jasonmirza1/genlayer-mergeproof
 - Intelligent Contract source: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/contracts/mergeproof.py
 - Direct contract tests: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/tests/direct/test_mergeproof.py
-- Live app: DEPLOYMENT_PENDING
+- Live app: https://genlayer-mergeproof.vercel.app
 - Demo video: VIDEO_PENDING
-- Bradbury contract: DEPLOYMENT_PENDING
-- Bradbury deployment transaction: DEPLOYMENT_PENDING
+- Bradbury contract: https://explorer-bradbury.genlayer.com/address/0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a
+- Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0x6df20ad70905c29540ecb7d7cd0d7a7e9070db379988f0f2561abf775fc0084b
 - Screenshot folder: SCREENSHOTS_PENDING
 
 ## Reviewer Path

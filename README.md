@@ -2,6 +2,8 @@
 
 MergeProof is GitHub bounty escrow that releases payment only after GenLayer validators inspect live issue and pull-request evidence. A sponsor writes the acceptance criteria before funding the bounty. A developer submits a pull request from the same repository. The Intelligent Contract fetches both pages and judges whether the pull request is merged and the written criteria are supported by visible evidence.
 
+**Live app:** https://genlayer-mergeproof.vercel.app
+
 This is a trust problem rather than a request for a better AI answer: an irreversible GEN transfer depends on a qualitative commercial outcome. The judgment and payout happen in one Intelligent Contract transaction, so neither party controls the evaluator or a private backend.
 
 ## Workflow
@@ -20,10 +22,11 @@ Normal contracts cannot decide whether a pull request actually satisfies prose a
 
 - Source: [`contracts/mergeproof.py`](contracts/mergeproof.py)
 - Direct tests: [`tests/direct/test_mergeproof.py`](tests/direct/test_mergeproof.py)
+- Frontend: <https://genlayer-mergeproof.vercel.app>
 - Bradbury network: chain ID `4221`
-- Bradbury contract: `DEPLOYMENT_PENDING`
-- Deployment transaction: `DEPLOYMENT_PENDING`
-- Explorer: <https://explorer-bradbury.genlayer.com>
+- Bradbury contract: [`0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a`](https://explorer-bradbury.genlayer.com/address/0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a)
+- Deployment transaction: [`0x6df20ad70905c29540ecb7d7cd0d7a7e9070db379988f0f2561abf775fc0084b`](https://explorer-bradbury.genlayer.com/tx/0x6df20ad70905c29540ecb7d7cd0d7a7e9070db379988f0f2561abf775fc0084b)
+- Network: GenLayer Bradbury, chain ID `4221`
 
 ### State lifecycle
 
