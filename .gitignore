@@ -1,0 +1,17 @@
+node_modules/
+.next/
+dist/
+coverage/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+frontend/.env
+frontend/.env.local
+frontend/.vercel/
+.vercel/
+frontend/AGENTS.md
+frontend/CLAUDE.md

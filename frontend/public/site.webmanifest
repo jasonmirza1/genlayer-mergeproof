@@ -1,0 +1,16 @@
+{
+  "name": "MergeProof",
+  "short_name": "MergeProof",
+  "description": "Validator-verifiable GitHub bounty escrow on GenLayer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101514",
+  "theme_color": "#4fd1b5",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
