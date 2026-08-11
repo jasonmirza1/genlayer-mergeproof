@@ -74,6 +74,7 @@ function BountyRow({
   busy,
   onSubmit,
   onEvaluate,
+  onWithdraw,
   onCancel,
 }: {
   bounty: Bounty;
@@ -81,10 +82,12 @@ function BountyRow({
   busy: boolean;
   onSubmit: (id: string, pullRequestUrl: string) => void;
   onEvaluate: (id: string) => void;
+  onWithdraw: (id: string) => void;
   onCancel: (id: string) => void;
 }) {
   const [pullRequestUrl, setPullRequestUrl] = useState("");
   const sponsor = Boolean(address && bounty.sponsor.toLowerCase() === address.toLowerCase());
+  const worker = Boolean(address && bounty.worker.toLowerCase() === address.toLowerCase());
   const acceptsWork = bounty.status === "OPEN" || bounty.status === "REVISION_REQUESTED";
   const pullRequestValid = isNumberedGitHubUrl(pullRequestUrl, "pull");
 
@@ -177,6 +180,11 @@ function BountyRow({
             <Scale /> Run judgment
           </Button>
         )}
+        {bounty.status === "SUBMITTED" && worker && (
+          <Button variant="outline" onClick={() => onWithdraw(bounty.id)} disabled={busy}>
+            <Undo2 /> Withdraw submission
+          </Button>
+        )}
         {acceptsWork && sponsor && (
           <Button variant="outline" onClick={() => onCancel(bounty.id)} disabled={busy}>
             <Undo2 /> Refund escrow
@@ -189,7 +197,7 @@ function BountyRow({
 
 export function MergeProofApp() {
   const { address, isConnected, isOnCorrectNetwork } = useWallet();
-  const { contractAddress, bounties, createBounty, submitWork, evaluate, cancel } = useMergeProof(address);
+  const { contractAddress, bounties, createBounty, submitWork, evaluate, withdraw, cancel } = useMergeProof(address);
   const [view, setView] = useState<"bounties" | "create">("bounties");
   const [title, setTitle] = useState("");
   const [issueUrl, setIssueUrl] = useState("");
@@ -203,7 +211,7 @@ export function MergeProofApp() {
     active: items.filter((item) => ["OPEN", "SUBMITTED", "REVISION_REQUESTED"].includes(item.status)).length,
     paid: items.filter((item) => item.status === "RELEASED").length,
   }), [items]);
-  const busy = createBounty.isPending || submitWork.isPending || evaluate.isPending || cancel.isPending;
+  const busy = createBounty.isPending || submitWork.isPending || evaluate.isPending || withdraw.isPending || cancel.isPending;
   const issueUrlValid = isNumberedGitHubUrl(issueUrl, "issues");
 
   const capture = (hash: string) => {
@@ -364,6 +372,12 @@ export function MergeProofApp() {
                     try {
                       const receipt = await evaluate.mutateAsync({ id, onSubmitted: capture });
                       finish(receipt, "Validator judgment completed");
+                    } catch (error) { fail(error); }
+                  }}
+                  onWithdraw={async (id) => {
+                    try {
+                      const receipt = await withdraw.mutateAsync({ id, onSubmitted: capture });
+                      finish(receipt, "Submission withdrawn; bounty reopened");
                     } catch (error) { fail(error); }
                   }}
                   onCancel={async (id) => {

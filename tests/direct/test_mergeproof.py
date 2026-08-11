@@ -287,6 +287,44 @@ def test_weak_evidence_requests_revision_then_sponsor_can_refund():
     assert transfers == [("0xSponsor", 10**18)]
 
 
+def test_worker_can_withdraw_submission_then_sponsor_can_refund():
+    module = _load_module()
+    contract = _contract(module)
+    transfers = []
+
+    class Recipient:
+        def __init__(self, address):
+            self.address = address
+
+        def emit_transfer(self, value):
+            transfers.append((str(self.address), int(value)))
+
+    module._Recipient = Recipient
+    _set_sender("0xSponsor", 10**18)
+    contract.create_bounty(
+        "Recoverable bounty",
+        "https://github.com/example/repo/issues/1",
+        "Implement the issue requirements and include passing direct tests.",
+    )
+    _set_sender("0xWorker")
+    contract.submit_work("1", "https://github.com/example/repo/pull/2")
+
+    _set_sender("0xSponsor")
+    with pytest.raises(Exception, match="Only the submitting worker"):
+        contract.withdraw_submission("1")
+
+    _set_sender("0xWorker")
+    reopened = contract.withdraw_submission("1")
+    assert reopened["status"] == "OPEN"
+    assert reopened["worker"] == ""
+    assert reopened["pull_request_url"] == ""
+
+    _set_sender("0xSponsor")
+    refunded = contract.cancel_bounty("1")
+    assert refunded["status"] == "REFUNDED"
+    assert transfers == [("0xSponsor", 10**18)]
+
+
 def test_bounty_views_serialize_records():
     module = _load_module()
     contract = _contract(module)

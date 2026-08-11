@@ -97,6 +97,26 @@ function assertSuccessfulExecution(receipt: any): void {
   }
 }
 
+async function verifyDeployment(
+  client: GenLayerClient<any>,
+  address: `0x${string}`,
+): Promise<unknown> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      return await client.readContract({
+        address,
+        functionName: "get_bounty_count",
+        args: [],
+      });
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+  }
+  throw lastError;
+}
+
 export default async function main(client: GenLayerClient<any>) {
   const filePath = path.resolve(process.cwd(), "contracts/mergeproof.py");
 
@@ -123,11 +143,10 @@ export default async function main(client: GenLayerClient<any>) {
       throw new Error("Deployment accepted but contract address was not found in receipt");
     }
 
-    const bountyCount = await client.readContract({
-      address: deployedContractAddress as `0x${string}`,
-      functionName: "get_bounty_count",
-      args: [],
-    });
+    const bountyCount = await verifyDeployment(
+      client,
+      deployedContractAddress as `0x${string}`,
+    );
 
     console.log(`Contract deployed at address: ${deployedContractAddress}`);
     console.log(`Deployment verified with bounty count: ${String(bountyCount)}`);

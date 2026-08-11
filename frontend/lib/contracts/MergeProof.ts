@@ -148,6 +148,10 @@ export class MergeProofClient {
     return this.write("evaluate_submission", [bountyId], 0n, onSubmitted);
   }
 
+  withdrawSubmission(bountyId: string, onSubmitted?: (hash: string) => void) {
+    return this.write("withdraw_submission", [bountyId], 0n, onSubmitted);
+  }
+
   cancelBounty(bountyId: string, onSubmitted?: (hash: string) => void) {
     return this.write("cancel_bounty", [bountyId], 0n, onSubmitted);
   }

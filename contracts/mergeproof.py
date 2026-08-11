@@ -276,6 +276,24 @@ they share valid JSON structure.
         return self._to_dict(bounty)
 
     @gl.public.write
+    def withdraw_submission(self, bounty_id: str) -> dict:
+        bounty = self._get_bounty_or_error(bounty_id)
+        if bounty.status != "SUBMITTED":
+            raise gl.vm.UserError("Bounty does not have a submitted work item")
+
+        sender = gl.message.sender_address
+        if sender.as_hex.lower() != bounty.worker.lower():
+            raise gl.vm.UserError("Only the submitting worker can withdraw this submission")
+
+        bounty.worker = ""
+        bounty.pull_request_url = ""
+        bounty.status = "OPEN"
+        bounty.verdict = "Submission withdrawn; bounty reopened."
+        bounty.evidence_summary = ""
+        bounty.unmet_criteria_json = "[]"
+        return self._to_dict(bounty)
+
+    @gl.public.write
     def cancel_bounty(self, bounty_id: str) -> dict:
         bounty = self._get_bounty_or_error(bounty_id)
         sender = gl.message.sender_address

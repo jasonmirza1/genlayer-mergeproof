@@ -8,7 +8,7 @@
 
 ## Description
 
-MergeProof is a GitHub bounty escrow for work that cannot be verified by a simple on-chain condition. A sponsor links a public GitHub issue, writes acceptance criteria, and funds the bounty with GEN. A developer submits a pull request from the same repository. The Intelligent Contract fetches the live issue and PR, then GenLayer validators judge whether the PR is merged and every pre-agreed criterion is supported by visible evidence. Agreement releases escrow directly to the developer; missing or weak evidence requests revision. GenLayer is central because the payment depends on validator consensus over a qualitative real-world delivery, not a centralized reviewer or format-only JSON check. The frontend handles funding, submission, judgment, revision, refund, and transaction status.
+MergeProof is a GitHub bounty escrow for work that cannot be verified by a simple on-chain condition. A sponsor links a public GitHub issue, writes acceptance criteria, and funds the bounty with GEN. A developer submits a pull request from the same repository. The Intelligent Contract fetches the live issue and PR, then GenLayer validators judge whether the PR is merged and every pre-agreed criterion is supported by visible evidence. Agreement releases escrow directly to the developer; missing or weak evidence requests revision. GenLayer is central because the payment depends on validator consensus over a qualitative real-world delivery, not a centralized reviewer or format-only JSON check. The frontend handles funding, submission, withdrawal recovery, judgment, revision, refund, and transaction status.
 
 ## Evidence
 
@@ -17,8 +17,8 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 - Direct contract tests: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/tests/direct/test_mergeproof.py
 - Live app: https://genlayer-mergeproof.vercel.app
 - Demo video: VIDEO_PENDING
-- Bradbury contract: https://explorer-bradbury.genlayer.com/address/0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a
-- Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0x6df20ad70905c29540ecb7d7cd0d7a7e9070db379988f0f2561abf775fc0084b
+- Bradbury contract: https://explorer-bradbury.genlayer.com/address/0x5610791050A2D7255F1CBD0802fBd9e41A5F205c
+- Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0x199ef39cd9e4160172070b6558e865d0263f53b06e80945e824c6982214ad096
 - Screenshot folder: SCREENSHOTS_PENDING
 
 ## Reviewer Path
