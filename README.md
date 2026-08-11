@@ -4,6 +4,8 @@ MergeProof is GitHub bounty escrow that releases payment only after GenLayer val
 
 **Live app:** https://genlayer-mergeproof.vercel.app
 
+**Demo video:** https://youtu.be/m0RhEOSz7jc
+
 This is a trust problem rather than a request for a better AI answer: an irreversible GEN transfer depends on a qualitative commercial outcome. The judgment and payout happen in one Intelligent Contract transaction, so neither party controls the evaluator or a private backend.
 
 ## Workflow
@@ -26,7 +28,10 @@ Normal contracts cannot decide whether a pull request actually satisfies prose a
 - Bradbury network: chain ID `4221`
 - Bradbury contract: [`0x5610791050A2D7255F1CBD0802fBd9e41A5F205c`](https://explorer-bradbury.genlayer.com/address/0x5610791050A2D7255F1CBD0802fBd9e41A5F205c)
 - Deployment transaction: [`0x199ef39cd9e4160172070b6558e865d0263f53b06e80945e824c6982214ad096`](https://explorer-bradbury.genlayer.com/tx/0x199ef39cd9e4160172070b6558e865d0263f53b06e80945e824c6982214ad096)
+- Successful paid settlement: [`0xa3dbb04e7d4a169c72f9df7e0ec2827810987ad9749dc14fe33ba02c3c9fa389`](https://explorer-bradbury.genlayer.com/tx/0xa3dbb04e7d4a169c72f9df7e0ec2827810987ad9749dc14fe33ba02c3c9fa389)
 - Network: GenLayer Bradbury, chain ID `4221`
+
+![MergeProof paid bounty and validator judgment](docs/mergeproof-paid.png)
 
 Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode, and `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded before public use by the worker withdrawal recovery path.
 
