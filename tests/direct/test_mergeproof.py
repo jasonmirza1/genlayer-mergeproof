@@ -79,6 +79,8 @@ class _EqPrinciple:
     def prompt_comparative(leader_fn, principle):
         assert "same APPROVE or REVISION outcome" in principle
         assert "merely because" in principle
+        captured = [cell.cell_contents for cell in (leader_fn.__closure__ or [])]
+        assert not any(hasattr(value, "__dataclass_fields__") for value in captured)
         return leader_fn()
 
 
