@@ -225,6 +225,9 @@ h1, h2, h3, p { margin: 0; }
 .form-grid > div { display: grid; gap: 8px; align-content: start; }
 .field-wide { grid-column: 1 / -1; position: relative; }
 .form-grid label { color: #cfd5d4; font-size: 13px; font-weight: 700; }
+.field-error { color: #f2a98f; font-size: 12px; line-height: 1.4; }
+[aria-invalid="true"] { border-color: #a85f4d !important; }
+.submission-url { display: grid; gap: 6px; }
 .form-grid input, .action-line input {
   height: 44px;
   border-radius: 6px;

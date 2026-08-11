@@ -39,6 +39,22 @@ function compact(value: string, size = 8) {
   if (value.length <= size * 2) return value;
   return `${value.slice(0, size)}...${value.slice(-size)}`;
 }
+
+function isNumberedGitHubUrl(value: string, resource: "issues" | "pull") {
+  try {
+    const url = new URL(value.trim());
+    const parts = url.pathname.split("/").filter(Boolean);
+    return (
+      url.protocol === "https:" &&
+      ["github.com", "www.github.com"].includes(url.hostname.toLowerCase()) &&
+      parts.length === 4 &&
+      parts[2] === resource &&
+      /^\d+$/.test(parts[3])
+    );
+  } catch {
+    return false;
+  }
+}
 function genAmount(amount: bigint) {
   const formatted = Number(formatEther(amount));
   return `${formatted.toLocaleString(undefined, { maximumFractionDigits: 4 })} GEN`;
@@ -70,6 +86,7 @@ function BountyRow({
   const [pullRequestUrl, setPullRequestUrl] = useState("");
   const sponsor = Boolean(address && bounty.sponsor.toLowerCase() === address.toLowerCase());
   const acceptsWork = bounty.status === "OPEN" || bounty.status === "REVISION_REQUESTED";
+  const pullRequestValid = isNumberedGitHubUrl(pullRequestUrl, "pull");
 
   return (
     <article className="bounty-row">
@@ -133,15 +150,21 @@ function BountyRow({
 
       {acceptsWork && !sponsor && address && (
         <div className="action-line">
-          <Input
-            value={pullRequestUrl}
-            onChange={(event) => setPullRequestUrl(event.target.value)}
-            placeholder="https://github.com/owner/repo/pull/123"
-            aria-label="Pull request URL"
-          />
+          <div className="submission-url">
+            <Input
+              value={pullRequestUrl}
+              onChange={(event) => setPullRequestUrl(event.target.value)}
+              placeholder="https://github.com/owner/repo/pull/123"
+              aria-label="Pull request URL"
+              aria-invalid={Boolean(pullRequestUrl) && !pullRequestValid}
+            />
+            {pullRequestUrl && !pullRequestValid && (
+              <span className="field-error">Use a numbered GitHub pull request URL.</span>
+            )}
+          </div>
           <Button
             onClick={() => onSubmit(bounty.id, pullRequestUrl)}
-            disabled={busy || !pullRequestUrl.trim()}
+            disabled={busy || !pullRequestValid}
           >
             <GitPullRequest /> Submit work
           </Button>
@@ -181,6 +204,7 @@ export function MergeProofApp() {
     paid: items.filter((item) => item.status === "RELEASED").length,
   }), [items]);
   const busy = createBounty.isPending || submitWork.isPending || evaluate.isPending || cancel.isPending;
+  const issueUrlValid = isNumberedGitHubUrl(issueUrl, "issues");
 
   const capture = (hash: string) => {
     setLastTx(hash);
@@ -198,6 +222,12 @@ export function MergeProofApp() {
   });
 
   const handleCreate = async () => {
+    if (!issueUrlValid) {
+      toast.error("Create the GitHub issue first", {
+        description: "Use its numbered URL, such as /issues/12. The /issues/new page is not an issue.",
+      });
+      return;
+    }
     try {
       const value = parseEther(amount || "0");
       const receipt = await createBounty.mutateAsync({
@@ -267,7 +297,16 @@ export function MergeProofApp() {
             </div>
             <div>
               <Label htmlFor="issue">GitHub issue URL</Label>
-              <Input id="issue" value={issueUrl} onChange={(event) => setIssueUrl(event.target.value)} placeholder="https://github.com/owner/repo/issues/12" />
+              <Input
+                id="issue"
+                value={issueUrl}
+                onChange={(event) => setIssueUrl(event.target.value)}
+                placeholder="https://github.com/owner/repo/issues/12"
+                aria-invalid={Boolean(issueUrl) && !issueUrlValid}
+              />
+              {issueUrl && !issueUrlValid && (
+                <span className="field-error">Create the issue first, then paste its numbered URL.</span>
+              )}
             </div>
             <div>
               <Label htmlFor="amount">Escrow amount (GEN)</Label>
@@ -290,7 +329,7 @@ export function MergeProofApp() {
             <Button variant="outline" onClick={() => setView("bounties")}>Cancel</Button>
             <Button
               onClick={handleCreate}
-              disabled={!canWrite || busy || !title.trim() || !issueUrl.trim() || criteria.trim().length < 20}
+              disabled={!canWrite || busy || !title.trim() || !issueUrlValid || criteria.trim().length < 20}
             >
               {busy ? <LoaderCircle className="animate-spin" /> : <CircleDollarSign />}
               Fund bounty
