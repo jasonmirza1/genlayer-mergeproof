@@ -54,6 +54,8 @@ class _Web:
         assert mode == "text"
         if "/issues/" in url:
             return "Issue: add input validation and tests. Acceptance checklist is visible."
+        if "gist.github.com" in url:
+            return "Gist by example. Bounty: 1. Pull request: example/repo/pull/2. Wallet: 0xWorker."
         return "Pull request changes validation code and adds passing tests."
 
 
@@ -62,6 +64,8 @@ class _Nondet:
     judgment = {
         "outcome": "APPROVE",
         "evidence_quality": "ENOUGH",
+        "ownership_verified": True,
+        "github_author": "example",
         "summary": "The pull request demonstrates every agreed requirement.",
         "unmet_criteria": [],
     }
@@ -78,7 +82,8 @@ class _EqPrinciple:
     @staticmethod
     def prompt_comparative(leader_fn, principle):
         assert "same APPROVE or REVISION outcome" in principle
-        assert "merely because" in principle
+        assert "Gist owner is the pull-request author" in principle
+        assert "valid JSON structure" in principle
         captured = [cell.cell_contents for cell in (leader_fn.__closure__ or [])]
         assert not any(hasattr(value, "__dataclass_fields__") for value in captured)
         return leader_fn()
@@ -148,6 +153,12 @@ def test_normalizes_github_issue_and_pull_request_urls():
     assert pull == "https://github.com/example/repo/pull/44"
     assert issue_repo == pull_repo == "example/repo"
 
+    gist, gist_owner = contract._parse_gist_url(
+        "https://gist.github.com/Example/aBcDeF123#file-proof-txt"
+    )
+    assert gist == "https://gist.github.com/Example/abcdef123"
+    assert gist_owner == "example"
+
 
 @pytest.mark.parametrize(
     "url,resource",
@@ -164,6 +175,22 @@ def test_rejects_invalid_evidence_urls(url, resource):
 
     with pytest.raises(Exception):
         contract._parse_github_url(url, resource)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://gist.github.com/example/abcdef",
+        "https://github.com/example/abcdef",
+        "https://gist.github.com/example/not-hex",
+    ],
+)
+def test_rejects_invalid_ownership_proof_urls(url):
+    module = _load_module()
+    contract = _contract(module)
+
+    with pytest.raises(Exception):
+        contract._parse_gist_url(url)
 
 
 def test_create_bounty_requires_specific_criteria_and_escrow():
@@ -203,10 +230,16 @@ def test_submission_must_match_issue_repository():
 
     _set_sender("0xWorker")
     with pytest.raises(Exception, match="issue repository"):
-        contract.submit_work("1", "https://github.com/other/repo/pull/2")
+        contract.submit_work(
+            "1",
+            "https://github.com/other/repo/pull/2",
+            "https://gist.github.com/example/abcdef123",
+        )
 
     submitted = contract.submit_work(
-        "1", "https://github.com/example/repo/pull/2"
+        "1",
+        "https://github.com/example/repo/pull/2",
+        "https://gist.github.com/example/abcdef123",
     )
     assert submitted["status"] == "SUBMITTED"
     assert submitted["worker"] == "0xWorker"
@@ -228,6 +261,8 @@ def test_approved_submission_releases_escrow():
     _Nondet.judgment = {
         "outcome": "APPROVE",
         "evidence_quality": "ENOUGH",
+        "ownership_verified": True,
+        "github_author": "example",
         "summary": "All acceptance criteria are supported by the pull request.",
         "unmet_criteria": [],
     }
@@ -239,7 +274,11 @@ def test_approved_submission_releases_escrow():
         "Add validation and direct tests for malformed inputs.",
     )
     _set_sender("0xWorker")
-    contract.submit_work("1", "https://github.com/example/repo/pull/2")
+    contract.submit_work(
+        "1",
+        "https://github.com/example/repo/pull/2",
+        "https://gist.github.com/example/abcdef123",
+    )
 
     result = contract.evaluate_submission("1")
 
@@ -263,6 +302,8 @@ def test_weak_evidence_requests_revision_then_sponsor_can_refund():
     _Nondet.judgment = {
         "outcome": "APPROVE",
         "evidence_quality": "WEAK",
+        "ownership_verified": True,
+        "github_author": "example",
         "summary": "The pull request page does not expose enough evidence.",
         "unmet_criteria": ["Passing tests are not visible"],
     }
@@ -274,7 +315,11 @@ def test_weak_evidence_requests_revision_then_sponsor_can_refund():
         "Add validation and direct tests for malformed inputs.",
     )
     _set_sender("0xWorker")
-    contract.submit_work("1", "https://github.com/example/repo/pull/2")
+    contract.submit_work(
+        "1",
+        "https://github.com/example/repo/pull/2",
+        "https://gist.github.com/example/abcdef123",
+    )
 
     judged = contract.evaluate_submission("1")
     assert judged["status"] == "REVISION_REQUESTED"
@@ -307,7 +352,11 @@ def test_worker_can_withdraw_submission_then_sponsor_can_refund():
         "Implement the issue requirements and include passing direct tests.",
     )
     _set_sender("0xWorker")
-    contract.submit_work("1", "https://github.com/example/repo/pull/2")
+    contract.submit_work(
+        "1",
+        "https://github.com/example/repo/pull/2",
+        "https://gist.github.com/example/abcdef123",
+    )
 
     _set_sender("0xSponsor")
     with pytest.raises(Exception, match="Only the submitting worker"):
@@ -318,11 +367,54 @@ def test_worker_can_withdraw_submission_then_sponsor_can_refund():
     assert reopened["status"] == "OPEN"
     assert reopened["worker"] == ""
     assert reopened["pull_request_url"] == ""
+    assert reopened["ownership_proof_url"] == ""
 
     _set_sender("0xSponsor")
     refunded = contract.cancel_bounty("1")
     assert refunded["status"] == "REFUNDED"
     assert transfers == [("0xSponsor", 10**18)]
+
+
+def test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet():
+    module = _load_module()
+    contract = _contract(module)
+    transfers = []
+
+    class Recipient:
+        def __init__(self, address):
+            self.address = address
+
+        def emit_transfer(self, value):
+            transfers.append((str(self.address), int(value)))
+
+    module._Recipient = Recipient
+    _Nondet.judgment = {
+        "outcome": "APPROVE",
+        "evidence_quality": "ENOUGH",
+        "ownership_verified": False,
+        "github_author": "real-author",
+        "summary": "The PR qualifies, but the claimant does not control its author account.",
+        "unmet_criteria": ["Ownership Gist belongs to a different GitHub account"],
+    }
+
+    _set_sender("0xSponsor", 10**18)
+    contract.create_bounty(
+        "Protected bounty",
+        "https://github.com/example/repo/issues/1",
+        "Implement the issue requirements and include passing direct tests.",
+    )
+    _set_sender("0xThief")
+    contract.submit_work(
+        "1",
+        "https://github.com/example/repo/pull/2",
+        "https://gist.github.com/thief/abcdef123",
+    )
+
+    judged = contract.evaluate_submission("1")
+
+    assert judged["status"] == "REVISION_REQUESTED"
+    assert judged["worker"] == "0xThief"
+    assert transfers == []
 
 
 def test_bounty_views_serialize_records():

@@ -38,6 +38,8 @@ function normalizeBounty(raw: any): Bounty | null {
     title: String(bounty.title ?? ""),
     issue_url: String(bounty.issue_url ?? ""),
     pull_request_url: String(bounty.pull_request_url ?? ""),
+    ownership_proof_url: String(bounty.ownership_proof_url ?? ""),
+    claimant_github: String(bounty.claimant_github ?? ""),
     acceptance_criteria: String(bounty.acceptance_criteria ?? ""),
     amount: BigInt(bounty.amount ?? 0),
     status: String(bounty.status ?? "OPEN") as BountyStatus,
@@ -140,8 +142,18 @@ export class MergeProofClient {
     );
   }
 
-  submitWork(bountyId: string, pullRequestUrl: string, onSubmitted?: (hash: string) => void) {
-    return this.write("submit_work", [bountyId, pullRequestUrl], 0n, onSubmitted);
+  submitWork(
+    bountyId: string,
+    pullRequestUrl: string,
+    ownershipProofUrl: string,
+    onSubmitted?: (hash: string) => void,
+  ) {
+    return this.write(
+      "submit_work",
+      [bountyId, pullRequestUrl, ownershipProofUrl],
+      0n,
+      onSubmitted,
+    );
   }
 
   evaluateSubmission(bountyId: string, onSubmitted?: (hash: string) => void) {

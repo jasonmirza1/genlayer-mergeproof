@@ -6,6 +6,8 @@ import {
   ArrowUpRight,
   CheckCircle2,
   CircleDollarSign,
+  Copy,
+  ExternalLink,
   FileCheck2,
   GitPullRequest,
   LoaderCircle,
@@ -55,6 +57,21 @@ function isNumberedGitHubUrl(value: string, resource: "issues" | "pull") {
     return false;
   }
 }
+
+function isGitHubGistUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+    const parts = url.pathname.split("/").filter(Boolean);
+    return (
+      url.protocol === "https:" &&
+      url.hostname.toLowerCase() === "gist.github.com" &&
+      parts.length === 2 &&
+      /^[0-9a-f]{5,}$/i.test(parts[1])
+    );
+  } catch {
+    return false;
+  }
+}
 function genAmount(amount: bigint) {
   const formatted = Number(formatEther(amount));
   return `${formatted.toLocaleString(undefined, { maximumFractionDigits: 4 })} GEN`;
@@ -80,16 +97,26 @@ function BountyRow({
   bounty: Bounty;
   address: string | null;
   busy: boolean;
-  onSubmit: (id: string, pullRequestUrl: string) => void;
+  onSubmit: (id: string, pullRequestUrl: string, ownershipProofUrl: string) => void;
   onEvaluate: (id: string) => void;
   onWithdraw: (id: string) => void;
   onCancel: (id: string) => void;
 }) {
   const [pullRequestUrl, setPullRequestUrl] = useState("");
+  const [ownershipProofUrl, setOwnershipProofUrl] = useState("");
   const sponsor = Boolean(address && bounty.sponsor.toLowerCase() === address.toLowerCase());
   const worker = Boolean(address && bounty.worker.toLowerCase() === address.toLowerCase());
   const acceptsWork = bounty.status === "OPEN" || bounty.status === "REVISION_REQUESTED";
   const pullRequestValid = isNumberedGitHubUrl(pullRequestUrl, "pull");
+  const ownershipProofValid = isGitHubGistUrl(ownershipProofUrl);
+  const ownershipChallenge = address && pullRequestValid
+    ? [
+        "MergeProof ownership proof",
+        `Bounty: ${bounty.id}`,
+        `Pull request: ${pullRequestUrl.trim()}`,
+        `Wallet: ${address}`,
+      ].join("\n")
+    : "Enter a pull request URL to generate the ownership challenge.";
 
   return (
     <article className="bounty-row">
@@ -127,6 +154,11 @@ function BountyRow({
                 Pull request <ArrowUpRight />
               </a>
             )}
+            {bounty.ownership_proof_url && (
+              <a href={bounty.ownership_proof_url} target="_blank" rel="noreferrer">
+                Ownership proof <ArrowUpRight />
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -153,7 +185,7 @@ function BountyRow({
 
       {acceptsWork && !sponsor && address && (
         <div className="action-line">
-          <div className="submission-url">
+          <div className="submission-fields">
             <Input
               value={pullRequestUrl}
               onChange={(event) => setPullRequestUrl(event.target.value)}
@@ -164,10 +196,43 @@ function BountyRow({
             {pullRequestUrl && !pullRequestValid && (
               <span className="field-error">Use a numbered GitHub pull request URL.</span>
             )}
+            <div className="ownership-challenge">
+              <div>
+                <span className="field-label">Wallet ownership challenge</span>
+                <div className="ownership-links">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="Copy ownership challenge"
+                    disabled={!address || !pullRequestValid}
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(ownershipChallenge);
+                      toast.success("Ownership challenge copied");
+                    }}
+                  >
+                    <Copy />
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" asChild title="Create public GitHub Gist">
+                    <a href="https://gist.github.com/" target="_blank" rel="noreferrer"><ExternalLink /></a>
+                  </Button>
+                </div>
+              </div>
+              <pre>{ownershipChallenge}</pre>
+            </div>
+            <Input
+              value={ownershipProofUrl}
+              onChange={(event) => setOwnershipProofUrl(event.target.value)}
+              placeholder="https://gist.github.com/github-author/gist-id"
+              aria-label="GitHub ownership proof Gist URL"
+              aria-invalid={Boolean(ownershipProofUrl) && !ownershipProofValid}
+            />
+            {ownershipProofUrl && !ownershipProofValid && (
+              <span className="field-error">Use a canonical public GitHub Gist URL.</span>
+            )}
           </div>
           <Button
-            onClick={() => onSubmit(bounty.id, pullRequestUrl)}
-            disabled={busy || !pullRequestValid}
+            onClick={() => onSubmit(bounty.id, pullRequestUrl, ownershipProofUrl)}
+            disabled={busy || !pullRequestValid || !ownershipProofValid}
           >
             <GitPullRequest /> Submit work
           </Button>
@@ -362,9 +427,14 @@ export function MergeProofApp() {
                   bounty={bounty}
                   address={address}
                   busy={busy}
-                  onSubmit={async (id, pullRequestUrl) => {
+                  onSubmit={async (id, pullRequestUrl, ownershipProofUrl) => {
                     try {
-                      const receipt = await submitWork.mutateAsync({ id, pullRequestUrl, onSubmitted: capture });
+                      const receipt = await submitWork.mutateAsync({
+                        id,
+                        pullRequestUrl,
+                        ownershipProofUrl,
+                        onSubmitted: capture,
+                      });
                       finish(receipt, "Pull request submitted");
                     } catch (error) { fail(error); }
                   }}

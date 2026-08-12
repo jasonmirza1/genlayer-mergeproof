@@ -227,7 +227,7 @@ h1, h2, h3, p { margin: 0; }
 .form-grid label { color: #cfd5d4; font-size: 13px; font-weight: 700; }
 .field-error { color: #f2a98f; font-size: 12px; line-height: 1.4; }
 [aria-invalid="true"] { border-color: #a85f4d !important; }
-.submission-url { display: grid; gap: 6px; }
+.submission-url, .submission-fields { display: grid; gap: 8px; }
 .form-grid input, .action-line input {
   height: 44px;
   border-radius: 6px;
@@ -285,6 +285,11 @@ h1, h2, h3, p { margin: 0; }
 .judgment-block ul { margin: 10px 0 0; padding-left: 20px; color: #e7b9aa; }
 
 .action-line { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 18px; }
+.action-line > button { align-self: end; }
+.ownership-challenge { padding: 12px; border-left: 2px solid #52d3b2; background: #0c1413; }
+.ownership-challenge > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ownership-links { display: flex; gap: 3px; }
+.ownership-challenge pre { margin-top: 8px; overflow-wrap: anywhere; white-space: pre-wrap; color: #c8d0cf; font: 12px/1.55 var(--font-mono), monospace; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .empty-state { min-height: 180px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px dashed #354142; border-radius: 8px; color: #839091; }
 .empty-state svg { width: 20px; }

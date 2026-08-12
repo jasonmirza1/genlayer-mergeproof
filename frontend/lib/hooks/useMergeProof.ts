@@ -41,8 +41,17 @@ export function useMergeProof(address?: string | null) {
   });
 
   const submitWork = useMutation({
-    mutationFn: (input: { id: string; pullRequestUrl: string; onSubmitted?: (hash: string) => void }) =>
-      client.submitWork(input.id, input.pullRequestUrl, input.onSubmitted),
+    mutationFn: (input: {
+      id: string;
+      pullRequestUrl: string;
+      ownershipProofUrl: string;
+      onSubmitted?: (hash: string) => void;
+    }) => client.submitWork(
+      input.id,
+      input.pullRequestUrl,
+      input.ownershipProofUrl,
+      input.onSubmitted,
+    ),
     onSuccess: refresh,
   });
 

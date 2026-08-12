@@ -11,14 +11,26 @@ This is a trust problem rather than a request for a better AI answer: an irrever
 ## Workflow
 
 1. A sponsor creates a bounty from a public GitHub issue, writes specific acceptance criteria, and escrows GEN.
-2. A developer submits a public pull request from the same repository.
-3. Any user can trigger evaluation. Validators independently fetch the issue and pull request.
-4. Equivalent validator judgments release escrow to the developer. Missing, weak, unmerged, or contradictory evidence requests revision.
-5. The sponsor may refund an open bounty or a bounty awaiting revision. Released funds cannot be reclaimed.
+2. A developer creates a public Gist from the pull-request author's GitHub account containing the app-generated bounty, PR, and wallet ownership challenge.
+3. The developer submits the public pull request and ownership-proof Gist from the wallet named in that challenge.
+4. Any user can trigger evaluation. Validators independently fetch the issue, pull request, and ownership Gist.
+5. Equivalent validator judgments release escrow only when the work qualifies, the Gist owner is the PR author, and the Gist challenge matches the claimant wallet. Missing work or failed ownership requests revision.
+6. The sponsor may refund an open bounty or a bounty awaiting revision. Released funds cannot be reclaimed.
 
 ## Why GenLayer
 
-Normal contracts cannot decide whether a pull request actually satisfies prose acceptance criteria. MergeProof uses `gl.nondet.web.render` to collect live GitHub evidence and `gl.eq_principle.prompt_comparative` to require validators to agree on the substantive outcome and criterion coverage. Valid JSON alone is explicitly insufficient. The contract also treats repository text as untrusted evidence and instructs validators to ignore embedded prompt injection.
+Normal contracts cannot decide whether a pull request actually satisfies prose acceptance criteria or whether the claimant controls its author account. MergeProof uses `gl.nondet.web.render` to collect live GitHub and Gist evidence and `gl.eq_principle.prompt_comparative` to require validators to agree on the substantive outcome, criterion coverage, and claimant ownership. Valid JSON alone is explicitly insufficient. The contract also treats repository text as untrusted evidence and instructs validators to ignore embedded prompt injection.
+
+## Claimant ownership
+
+The frontend generates an ownership challenge tied to the bounty ID, canonical pull-request URL, and connected wallet. The claimant publishes it as a public Gist from the same GitHub account that authored the pull request. Validators require all of the following before payment:
+
+- the pull-request author is visible;
+- the Gist owner matches that author;
+- the Gist contains the exact bounty, pull-request, and wallet values;
+- the connected claimant wallet matches the challenged wallet.
+
+An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow without a matching Gist controlled by the PR author. The direct test `test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet` proves this failure path transfers no funds.
 
 ## Contract
 
@@ -80,6 +92,7 @@ After deployment, put the address in your local `frontend/.env`. Never commit a 
 ## Limitations
 
 - Only public canonical GitHub issue and pull-request URLs are accepted.
+- Ownership proofs must be canonical public GitHub Gist URLs owned by the pull-request author.
 - GitHub availability and page rendering affect evidence quality; weak evidence requests revision instead of paying.
 - Validators judge the visible diff and discussion. They do not execute arbitrary repository code.
 - Sponsor cancellation is intentionally limited to `OPEN` and `REVISION_REQUESTED`; it is unavailable during evaluation or after release.

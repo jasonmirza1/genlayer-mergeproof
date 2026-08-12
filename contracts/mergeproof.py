@@ -23,6 +23,8 @@ class Bounty:
     title: str
     issue_url: str
     pull_request_url: str
+    ownership_proof_url: str
+    claimant_github: str
     acceptance_criteria: str
     amount: u256
     status: str
@@ -72,6 +74,22 @@ class MergeProof(gl.Contract):
             raise gl.vm.UserError("Bounty not found")
         return self.bounties[bounty_id]
 
+    def _parse_gist_url(self, url: str) -> tuple:
+        normalized = url.strip().split("?")[0].split("#")[0].rstrip("/")
+        prefix = "https://gist.github.com/"
+        if not normalized.startswith(prefix):
+            raise gl.vm.UserError("Expected a public GitHub Gist HTTPS URL")
+
+        parts = [part for part in normalized[len(prefix) :].split("/") if part]
+        if (
+            len(parts) != 2
+            or len(parts[1]) < 5
+            or not all(char in "0123456789abcdefABCDEF" for char in parts[1])
+        ):
+            raise gl.vm.UserError("Expected a canonical GitHub Gist URL")
+
+        return prefix + parts[0] + "/" + parts[1].lower(), parts[0].lower()
+
     def _as_string_list(self, value) -> list:
         if isinstance(value, list):
             return [str(item)[0:240] for item in value[0:6]]
@@ -89,10 +107,16 @@ class MergeProof(gl.Contract):
             evidence_quality = "WEAK"
             outcome = "REVISION"
 
+        ownership_verified = raw.get("ownership_verified") is True
+        if not ownership_verified:
+            outcome = "REVISION"
+
         summary = str(raw.get("summary", "Evidence was not sufficient."))[0:600]
         return {
             "outcome": outcome,
             "evidence_quality": evidence_quality,
+            "ownership_verified": ownership_verified,
+            "github_author": str(raw.get("github_author", ""))[0:80],
             "summary": summary,
             "unmet_criteria": self._as_string_list(raw.get("unmet_criteria", [])),
         }
@@ -103,10 +127,14 @@ class MergeProof(gl.Contract):
         acceptance_criteria: str,
         issue_url: str,
         pull_request_url: str,
+        ownership_proof_url: str,
+        bounty_id: str,
+        claimant_wallet: str,
     ) -> dict:
         def collect_and_judge() -> dict:
             issue_page = gl.nondet.web.render(issue_url, mode="text")
             pull_request_page = gl.nondet.web.render(pull_request_url, mode="text")
+            ownership_page = gl.nondet.web.render(ownership_proof_url, mode="text")
 
             task = f"""
 Judge whether a public GitHub pull request satisfies a bounty's explicit
@@ -134,10 +162,23 @@ GitHub pull request URL:
 Pull request evidence:
 {pull_request_page[0:14000]}
 
+GitHub ownership proof URL:
+{ownership_proof_url}
+
+Ownership proof evidence:
+{ownership_page[0:8000]}
+
+Required ownership challenge values:
+- Bounty: {bounty_id}
+- Pull request: {pull_request_url}
+- Wallet: {claimant_wallet}
+
 Return only JSON with exactly these keys:
 {{
   "outcome": "APPROVE" | "REVISION",
   "evidence_quality": "ENOUGH" | "WEAK",
+  "ownership_verified": boolean,
+  "github_author": string,
   "summary": string,
   "unmet_criteria": string[]
 }}
@@ -146,6 +187,12 @@ Decision rules:
 - APPROVE only when the visible issue and pull request evidence materially
   demonstrate that the pull request is merged and every explicit acceptance
   criterion was completed.
+- APPROVE only when the ownership Gist is visibly owned by the same GitHub
+  account that authored the pull request and contains all three exact challenge
+  values above. A Gist owned by any other account, a wallet mismatch, or an
+  unverifiable PR author must set ownership_verified to false and REVISION.
+- Claims or wallet text on the pull request page do not replace the ownership
+  Gist. The Gist owner and pull-request author must match.
 - REVISION when any material criterion is missing, contradicted, unverifiable,
   only claimed without supporting pull request evidence, or not yet merged.
 - A closed but unmerged pull request is not approved.
@@ -162,9 +209,11 @@ Decision rules:
 Both outputs judge the same GitHub issue and pull request against the same
 pre-agreed acceptance criteria. They are equivalent only when they reach the
 same APPROVE or REVISION outcome and materially agree about whether each
-acceptance criterion is supported by visible evidence. Wording differences in
-the summary are acceptable. Do not accept outputs as equivalent merely because
-they share valid JSON structure.
+acceptance criterion is supported by visible evidence. They must also agree
+that the Gist owner is the pull-request author and that the exact bounty, pull
+request, and claimant wallet challenge values are present. Wording differences
+in the summary are acceptable. Do not accept outputs as equivalent merely
+because they share valid JSON structure.
 """,
         )
         return self._normalize_judgment(judgment)
@@ -177,6 +226,8 @@ they share valid JSON structure.
             "title": bounty.title,
             "issue_url": bounty.issue_url,
             "pull_request_url": bounty.pull_request_url,
+            "ownership_proof_url": bounty.ownership_proof_url,
+            "claimant_github": bounty.claimant_github,
             "acceptance_criteria": bounty.acceptance_criteria,
             "amount": int(bounty.amount),
             "status": bounty.status,
@@ -214,6 +265,8 @@ they share valid JSON structure.
             title=clean_title,
             issue_url=normalized_issue,
             pull_request_url="",
+            ownership_proof_url="",
+            claimant_github="",
             acceptance_criteria=clean_criteria,
             amount=amount,
             status="OPEN",
@@ -226,7 +279,9 @@ they share valid JSON structure.
         return self._to_dict(bounty)
 
     @gl.public.write
-    def submit_work(self, bounty_id: str, pull_request_url: str) -> dict:
+    def submit_work(
+        self, bounty_id: str, pull_request_url: str, ownership_proof_url: str
+    ) -> dict:
         bounty = self._get_bounty_or_error(bounty_id)
         if bounty.status not in ["OPEN", "REVISION_REQUESTED"]:
             raise gl.vm.UserError("Bounty is not accepting submissions")
@@ -237,6 +292,7 @@ they share valid JSON structure.
         )
         if pr_repo != issue_repo:
             raise gl.vm.UserError("Pull request must belong to the issue repository")
+        normalized_proof, _proof_owner = self._parse_gist_url(ownership_proof_url)
 
         worker = gl.message.sender_address
         if worker.as_hex.lower() == bounty.sponsor.lower():
@@ -244,6 +300,8 @@ they share valid JSON structure.
 
         bounty.worker = worker.as_hex
         bounty.pull_request_url = normalized_pr
+        bounty.ownership_proof_url = normalized_proof
+        bounty.claimant_github = ""
         bounty.status = "SUBMITTED"
         bounty.verdict = "Submission received; awaiting validator judgment."
         bounty.evidence_summary = ""
@@ -261,7 +319,11 @@ they share valid JSON structure.
             str(bounty.acceptance_criteria),
             str(bounty.issue_url),
             str(bounty.pull_request_url),
+            str(bounty.ownership_proof_url),
+            str(bounty.id),
+            str(bounty.worker),
         )
+        bounty.claimant_github = judgment["github_author"]
         bounty.evidence_summary = judgment["summary"]
         bounty.unmet_criteria_json = json.dumps(judgment["unmet_criteria"])
 
@@ -287,6 +349,8 @@ they share valid JSON structure.
 
         bounty.worker = ""
         bounty.pull_request_url = ""
+        bounty.ownership_proof_url = ""
+        bounty.claimant_github = ""
         bounty.status = "OPEN"
         bounty.verdict = "Submission withdrawn; bounty reopened."
         bounty.evidence_summary = ""

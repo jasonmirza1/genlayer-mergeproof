@@ -12,6 +12,8 @@ export interface Bounty {
   title: string;
   issue_url: string;
   pull_request_url: string;
+  ownership_proof_url: string;
+  claimant_github: string;
   acceptance_criteria: string;
   amount: bigint;
   status: BountyStatus;

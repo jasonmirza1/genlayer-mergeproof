@@ -8,7 +8,7 @@
 
 ## Description
 
-MergeProof is a GitHub bounty escrow for work that cannot be verified by a simple on-chain condition. A sponsor links a public GitHub issue, writes acceptance criteria, and funds the bounty with GEN. A developer submits a pull request from the same repository. The Intelligent Contract fetches the live issue and PR, then GenLayer validators judge whether the PR is merged and every pre-agreed criterion is supported by visible evidence. Agreement releases escrow directly to the developer; missing or weak evidence requests revision. GenLayer is central because the payment depends on validator consensus over a qualitative real-world delivery, not a centralized reviewer or format-only JSON check. The frontend handles funding, submission, withdrawal recovery, judgment, revision, refund, and transaction status.
+MergeProof is a GitHub bounty escrow for work that cannot be verified by a simple on-chain condition. A sponsor links a public GitHub issue, writes acceptance criteria, and funds the bounty with GEN. A developer submits a pull request plus a public ownership-proof Gist from the PR author's GitHub account. The Gist binds the bounty ID and canonical PR URL to the claimant wallet. GenLayer validators fetch all three live evidence pages and release escrow only when the work qualifies, the Gist owner is the PR author, and the wallet challenge matches. Missing work or failed ownership requests revision. GenLayer is central because payment depends on validator consensus over qualitative delivery and cross-site identity evidence, not a centralized reviewer.
 
 ## Evidence
 
@@ -25,11 +25,12 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 
 ## Reviewer Path
 
-1. Open the contract source and inspect `_judge_submission`, `create_bounty`, and `evaluate_submission`.
-2. Confirm live evidence is fetched with `gl.nondet.web.render`.
-3. Confirm equivalence compares the actual approve/revision outcome and criterion coverage.
-4. Confirm escrow is supplied through a payable call and released only after an approved judgment.
-5. Run the direct tests and frontend production build using the README commands.
+1. Open the contract source and inspect `_judge_submission`, `submit_work`, and `evaluate_submission`.
+2. Confirm live issue, PR, and ownership-Gist evidence is fetched with `gl.nondet.web.render`.
+3. Confirm equivalence compares the outcome, criterion coverage, Gist owner/PR author match, and exact wallet challenge.
+4. Inspect `test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet` and confirm failed ownership transfers no funds.
+5. Confirm escrow is supplied through a payable call and released only after an approved judgment with verified ownership.
+6. Run the direct tests and frontend production build using the README commands.
 
 ## Demo Checklist
 
