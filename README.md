@@ -40,6 +40,8 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 - Bradbury network: chain ID `4221`
 - Bradbury contract: [`0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0`](https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0)
 - Deployment transaction: [`0xd9196a30941f662bd4bcceea9a6d0d6990ae94abb1c6a11dcf64a20ec996f03f`](https://explorer-bradbury.genlayer.com/tx/0xd9196a30941f662bd4bcceea9a6d0d6990ae94abb1c6a11dcf64a20ec996f03f)
+- Verified ownership settlement: [`0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5`](https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5)
+- Ownership proof: [`jasonmirza1/a1bd857282950b18b8162f87e64c0a9c`](https://gist.github.com/jasonmirza1/a1bd857282950b18b8162f87e64c0a9c)
 - Network: GenLayer Bradbury, chain ID `4221`
 
 ![MergeProof paid bounty and validator judgment](docs/mergeproof-paid.png)

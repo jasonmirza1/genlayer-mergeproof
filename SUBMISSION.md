@@ -19,9 +19,10 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 - Demo video: https://youtu.be/m0RhEOSz7jc
 - Bradbury contract: https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0
 - Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0xd9196a30941f662bd4bcceea9a6d0d6990ae94abb1c6a11dcf64a20ec996f03f
-- Corrected ownership settlement: PENDING_LIVE_VERIFICATION
+- Corrected ownership settlement: https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5
+- Ownership-proof Gist: https://gist.github.com/jasonmirza1/a1bd857282950b18b8162f87e64c0a9c
 - Merged evidence pull request: https://github.com/jasonmirza1/genlayer-mergeproof/pull/2
-- Previous workflow screenshot: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/docs/mergeproof-paid.png
+- Corrected paid-state screenshot: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/docs/mergeproof-paid.png
 
 ## Reviewer Path
 
