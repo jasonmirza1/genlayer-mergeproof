@@ -38,14 +38,13 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 - Direct tests: [`tests/direct/test_mergeproof.py`](tests/direct/test_mergeproof.py)
 - Frontend: <https://genlayer-mergeproof.vercel.app>
 - Bradbury network: chain ID `4221`
-- Bradbury contract: [`0x5610791050A2D7255F1CBD0802fBd9e41A5F205c`](https://explorer-bradbury.genlayer.com/address/0x5610791050A2D7255F1CBD0802fBd9e41A5F205c)
-- Deployment transaction: [`0x199ef39cd9e4160172070b6558e865d0263f53b06e80945e824c6982214ad096`](https://explorer-bradbury.genlayer.com/tx/0x199ef39cd9e4160172070b6558e865d0263f53b06e80945e824c6982214ad096)
-- Successful paid settlement: [`0xa3dbb04e7d4a169c72f9df7e0ec2827810987ad9749dc14fe33ba02c3c9fa389`](https://explorer-bradbury.genlayer.com/tx/0xa3dbb04e7d4a169c72f9df7e0ec2827810987ad9749dc14fe33ba02c3c9fa389)
+- Bradbury contract: [`0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0`](https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0)
+- Deployment transaction: [`0xd9196a30941f662bd4bcceea9a6d0d6990ae94abb1c6a11dcf64a20ec996f03f`](https://explorer-bradbury.genlayer.com/tx/0xd9196a30941f662bd4bcceea9a6d0d6990ae94abb1c6a11dcf64a20ec996f03f)
 - Network: GenLayer Bradbury, chain ID `4221`
 
 ![MergeProof paid bounty and validator judgment](docs/mergeproof-paid.png)
 
-Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode, and `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded before public use by the worker withdrawal recovery path.
+Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; and `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership. Its earlier settlement is historical evidence only and is not proof of the corrected ownership model.
 
 ### State lifecycle
 
