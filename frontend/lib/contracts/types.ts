@@ -20,6 +20,8 @@ export interface Bounty {
   verdict: string;
   evidence_summary: string;
   unmet_criteria: string[];
+  submitted_at: number;
+  recovery_at: number;
 }
 export interface TransactionReceipt {
   status?: string;

@@ -1,8 +1,12 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 import json
+import time
 from dataclasses import dataclass
 from genlayer import *
+
+
+SUBMISSION_RECOVERY_DELAY_SECONDS = 2 * 60 * 60
 
 
 @gl.evm.contract_interface
@@ -31,6 +35,7 @@ class Bounty:
     verdict: str
     evidence_summary: str
     unmet_criteria_json: str
+    submitted_at: u256
 
 
 class MergeProof(gl.Contract):
@@ -39,6 +44,9 @@ class MergeProof(gl.Contract):
 
     def __init__(self):
         pass
+
+    def _now_seconds(self) -> int:
+        return int(time.time())
 
     def _parse_github_url(self, url: str, resource: str) -> tuple:
         normalized = url.strip()
@@ -219,6 +227,7 @@ because they share valid JSON structure.
         return self._normalize_judgment(judgment)
 
     def _to_dict(self, bounty: Bounty) -> dict:
+        submitted_at = int(bounty.submitted_at)
         return {
             "id": bounty.id,
             "sponsor": bounty.sponsor,
@@ -234,7 +243,22 @@ because they share valid JSON structure.
             "verdict": bounty.verdict,
             "evidence_summary": bounty.evidence_summary,
             "unmet_criteria": json.loads(bounty.unmet_criteria_json),
+            "submitted_at": submitted_at,
+            "recovery_at": (
+                submitted_at + SUBMISSION_RECOVERY_DELAY_SECONDS
+                if submitted_at
+                else 0
+            ),
         }
+
+    def _clear_submission(self, bounty: Bounty) -> None:
+        bounty.worker = ""
+        bounty.pull_request_url = ""
+        bounty.ownership_proof_url = ""
+        bounty.claimant_github = ""
+        bounty.submitted_at = u256(0)
+        bounty.evidence_summary = ""
+        bounty.unmet_criteria_json = "[]"
 
     def _refund(self, bounty: Bounty) -> None:
         _Recipient(Address(bounty.sponsor)).emit_transfer(value=bounty.amount)
@@ -273,6 +297,7 @@ because they share valid JSON structure.
             verdict="Awaiting a pull request.",
             evidence_summary="",
             unmet_criteria_json="[]",
+            submitted_at=u256(0),
         )
         self.bounties[bounty_id] = bounty
         self.bounty_count = u256(int(self.bounty_count) + 1)
@@ -302,6 +327,7 @@ because they share valid JSON structure.
         bounty.pull_request_url = normalized_pr
         bounty.ownership_proof_url = normalized_proof
         bounty.claimant_github = ""
+        bounty.submitted_at = u256(self._now_seconds())
         bounty.status = "SUBMITTED"
         bounty.verdict = "Submission received; awaiting validator judgment."
         bounty.evidence_summary = ""
@@ -347,14 +373,30 @@ because they share valid JSON structure.
         if sender.as_hex.lower() != bounty.worker.lower():
             raise gl.vm.UserError("Only the submitting worker can withdraw this submission")
 
-        bounty.worker = ""
-        bounty.pull_request_url = ""
-        bounty.ownership_proof_url = ""
-        bounty.claimant_github = ""
+        self._clear_submission(bounty)
         bounty.status = "OPEN"
         bounty.verdict = "Submission withdrawn; bounty reopened."
-        bounty.evidence_summary = ""
-        bounty.unmet_criteria_json = "[]"
+        return self._to_dict(bounty)
+
+    @gl.public.write
+    def recover_submission(self, bounty_id: str) -> dict:
+        bounty = self._get_bounty_or_error(bounty_id)
+        if bounty.status != "SUBMITTED":
+            raise gl.vm.UserError("Bounty does not have a submitted work item")
+
+        sender = gl.message.sender_address
+        if sender.as_hex.lower() != bounty.sponsor.lower():
+            raise gl.vm.UserError("Only the sponsor can recover a stuck submission")
+
+        recovery_at = int(bounty.submitted_at) + SUBMISSION_RECOVERY_DELAY_SECONDS
+        if self._now_seconds() < recovery_at:
+            raise gl.vm.UserError(
+                "Submission recovery is available after the bounded recovery delay"
+            )
+
+        self._clear_submission(bounty)
+        bounty.status = "OPEN"
+        bounty.verdict = "Submission recovery window expired; bounty reopened."
         return self._to_dict(bounty)
 
     @gl.public.write

@@ -73,5 +73,11 @@ export function useMergeProof(address?: string | null) {
     onSuccess: refresh,
   });
 
-  return { contractAddress, bounties, createBounty, submitWork, evaluate, withdraw, cancel };
+  const recover = useMutation({
+    mutationFn: (input: { id: string; onSubmitted?: (hash: string) => void }) =>
+      client.recoverSubmission(input.id, input.onSubmitted),
+    onSuccess: refresh,
+  });
+
+  return { contractAddress, bounties, createBounty, submitWork, evaluate, withdraw, cancel, recover };
 }

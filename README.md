@@ -15,7 +15,7 @@ This is a trust problem rather than a request for a better AI answer: an irrever
 3. The developer submits the public pull request and ownership-proof Gist from the wallet named in that challenge.
 4. Any user can trigger evaluation. Validators independently fetch the issue, pull request, and ownership Gist.
 5. Equivalent validator judgments release escrow only when the work qualifies, the Gist owner is the PR author, and the Gist challenge matches the claimant wallet. Missing work or failed ownership requests revision.
-6. The sponsor may refund an open bounty or a bounty awaiting revision. Released funds cannot be reclaimed.
+6. The frontend waits for finalized judgment before showing payment as complete. A sponsor may refund an open bounty or a bounty awaiting revision, or reopen a `SUBMITTED` bounty after the bounded two-hour recovery window if evaluation cannot complete and the worker does not withdraw. Released funds cannot be reclaimed.
 
 ## Why GenLayer
 
@@ -36,27 +36,32 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 
 - Source: [`contracts/mergeproof.py`](contracts/mergeproof.py)
 - Direct tests: [`tests/direct/test_mergeproof.py`](tests/direct/test_mergeproof.py)
+- Integration negative test: [`tests/integration/test_mergeproof_ownership.py`](tests/integration/test_mergeproof_ownership.py)
 - Frontend: <https://genlayer-mergeproof.vercel.app>
 - Bradbury network: chain ID `4221`
-- Bradbury contract: [`0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0`](https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0)
-- Deployment transaction: [`0xd9196a30941f662bd4bcceea9a6d0d6990ae94abb1c6a11dcf64a20ec996f03f`](https://explorer-bradbury.genlayer.com/tx/0xd9196a30941f662bd4bcceea9a6d0d6990ae94abb1c6a11dcf64a20ec996f03f)
-- Verified ownership settlement: [`0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5`](https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5)
+- Current Bradbury contract: [`0x6312A9ED01a500f752C1F9d328473a6572b135bA`](https://explorer-bradbury.genlayer.com/address/0x6312A9ED01a500f752C1F9d328473a6572b135bA)
+- Current deployment transaction: [`0xea001ba0d446c13253647a088bf58dced2655cf1ee6a21715d1bf9197ba403dd`](https://explorer-bradbury.genlayer.com/tx/0xea001ba0d446c13253647a088bf58dced2655cf1ee6a21715d1bf9197ba403dd)
+- Previous corrected ownership deployment: [`0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0`](https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0)
+- Verified ownership settlement on the previous corrected deployment: [`0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5`](https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5)
 - Ownership proof: [`jasonmirza1/a1bd857282950b18b8162f87e64c0a9c`](https://gist.github.com/jasonmirza1/a1bd857282950b18b8162f87e64c0a9c)
 - Network: GenLayer Bradbury, chain ID `4221`
 
 ![MergeProof paid bounty and validator judgment](docs/mergeproof-paid.png)
 
-Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; and `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership. Its earlier settlement is historical evidence only and is not proof of the corrected ownership model.
+Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; and `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership. The `0x746C...` deployment is retained as prior corrected ownership evidence; the current submission deployment is `0x6312...`.
 
 ### State lifecycle
 
 ```text
 OPEN -> SUBMITTED -> RELEASED
   |         |
+  |         +-> OPEN (sponsor recovery after two hours)
   |         +-> REVISION_REQUESTED -> SUBMITTED
   |                    |
   +--------------------+-> REFUNDED
 ```
+
+`RELEASED` is only surfaced by the frontend from finalized contract state. During the finality window, the UI shows that consensus was accepted but payment is still awaiting finality.
 
 ## Run locally
 
@@ -79,6 +84,13 @@ python -m pytest tests\direct\test_mergeproof.py -v
 genvm-lint check contracts\mergeproof.py
 ```
 
+The ownership-mismatch integration test is opt-in because it needs a running GenLayer localnet or Studio-compatible endpoint with the test fixtures available:
+
+```powershell
+$env:MERGEPROOF_RUN_INTEGRATION = "1"
+gltest tests/integration -v -s
+```
+
 ## Deploy
 
 Keep deployment credentials only in the ignored root `.env`; `.env.example` contains placeholders.
@@ -97,6 +109,7 @@ After deployment, put the address in your local `frontend/.env`. Never commit a 
 - GitHub availability and page rendering affect evidence quality; weak evidence requests revision instead of paying.
 - Validators judge the visible diff and discussion. They do not execute arbitrary repository code.
 - Sponsor cancellation is intentionally limited to `OPEN` and `REVISION_REQUESTED`; it is unavailable during evaluation or after release.
+- A `SUBMITTED` bounty is recoverable only by its sponsor after the two-hour bounded delay; the recovery action clears the worker evidence and reopens the escrow for a new submission.
 
 ## License
 

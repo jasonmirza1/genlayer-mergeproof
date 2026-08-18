@@ -375,6 +375,40 @@ def test_worker_can_withdraw_submission_then_sponsor_can_refund():
     assert transfers == [("0xSponsor", 10**18)]
 
 
+def test_sponsor_can_recover_stuck_submission_after_bounded_delay(monkeypatch):
+    module = _load_module()
+    contract = _contract(module)
+    _set_sender("0xSponsor", 10**18)
+    contract.create_bounty(
+        "Recoverable bounty",
+        "https://github.com/example/repo/issues/1",
+        "Implement the issue requirements and include passing direct tests.",
+    )
+    _set_sender("0xWorker")
+    contract.submit_work(
+        "1",
+        "https://github.com/example/repo/pull/2",
+        "https://gist.github.com/example/abcdef123",
+    )
+
+    _set_sender("0xSponsor")
+    with pytest.raises(Exception, match="bounded recovery delay"):
+        contract.recover_submission("1")
+
+    submitted_at = contract.get_bounty("1")["submitted_at"]
+    monkeypatch.setattr(
+        module.time,
+        "time",
+        lambda: submitted_at + module.SUBMISSION_RECOVERY_DELAY_SECONDS + 1,
+    )
+    recovered = contract.recover_submission("1")
+
+    assert recovered["status"] == "OPEN"
+    assert recovered["worker"] == ""
+    assert recovered["pull_request_url"] == ""
+    assert recovered["recovery_at"] == 0
+
+
 def test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet():
     module = _load_module()
     contract = _contract(module)

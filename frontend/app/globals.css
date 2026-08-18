@@ -283,6 +283,9 @@ h1, h2, h3, p { margin: 0; }
 .judgment-block svg { width: 16px; }
 .judgment-block p { margin-top: 8px; color: #c3cccb; line-height: 1.5; }
 .judgment-block ul { margin: 10px 0 0; padding-left: 20px; color: #e7b9aa; }
+.finality-note { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding: 11px 12px; border-left: 2px solid #efc078; background: #1b1710; color: #f1d29e; font-size: 13px; line-height: 1.45; }
+.finality-note svg { width: 16px; flex: 0 0 auto; }
+.recovery-note { display: block; margin-top: 10px; }
 
 .action-line { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 18px; }
 .action-line > button { align-self: end; }

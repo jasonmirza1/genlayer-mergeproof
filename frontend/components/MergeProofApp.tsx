@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
+  Clock3,
   CircleDollarSign,
   Copy,
   ExternalLink,
@@ -93,6 +94,8 @@ function BountyRow({
   onEvaluate,
   onWithdraw,
   onCancel,
+  onRecover,
+  finalityPending,
 }: {
   bounty: Bounty;
   address: string | null;
@@ -101,12 +104,15 @@ function BountyRow({
   onEvaluate: (id: string) => void;
   onWithdraw: (id: string) => void;
   onCancel: (id: string) => void;
+  onRecover: (id: string) => void;
+  finalityPending: boolean;
 }) {
   const [pullRequestUrl, setPullRequestUrl] = useState("");
   const [ownershipProofUrl, setOwnershipProofUrl] = useState("");
   const sponsor = Boolean(address && bounty.sponsor.toLowerCase() === address.toLowerCase());
   const worker = Boolean(address && bounty.worker.toLowerCase() === address.toLowerCase());
   const acceptsWork = bounty.status === "OPEN" || bounty.status === "REVISION_REQUESTED";
+  const recoveryReady = bounty.recovery_at === 0 || bounty.recovery_at <= Math.floor(Date.now() / 1000);
   const pullRequestValid = isNumberedGitHubUrl(pullRequestUrl, "pull");
   const ownershipProofValid = isGitHubGistUrl(ownershipProofUrl);
   const ownershipChallenge = address && pullRequestValid
@@ -183,6 +189,13 @@ function BountyRow({
         </div>
       )}
 
+      {finalityPending && (
+        <div className="finality-note">
+          <Clock3 />
+          <span>Accepted by consensus; awaiting finality before payment is marked complete.</span>
+        </div>
+      )}
+
       {acceptsWork && !sponsor && address && (
         <div className="action-line">
           <div className="submission-fields">
@@ -255,20 +268,34 @@ function BountyRow({
             <Undo2 /> Refund escrow
           </Button>
         )}
+        {bounty.status === "SUBMITTED" && sponsor && (
+          <Button
+            variant="outline"
+            onClick={() => onRecover(bounty.id)}
+            disabled={busy || !recoveryReady}
+            title={recoveryReady ? "Reopen this stuck submission" : "Available after the bounded recovery delay"}
+          >
+            <RefreshCw /> Recover stuck submission
+          </Button>
+        )}
       </div>
+      {bounty.status === "SUBMITTED" && sponsor && !recoveryReady && (
+        <span className="field-note recovery-note">Sponsor recovery opens after the bounded recovery delay.</span>
+      )}
     </article>
   );
 }
 
 export function MergeProofApp() {
   const { address, isConnected, isOnCorrectNetwork } = useWallet();
-  const { contractAddress, bounties, createBounty, submitWork, evaluate, withdraw, cancel } = useMergeProof(address);
+  const { contractAddress, bounties, createBounty, submitWork, evaluate, withdraw, cancel, recover } = useMergeProof(address);
   const [view, setView] = useState<"bounties" | "create">("bounties");
   const [title, setTitle] = useState("");
   const [issueUrl, setIssueUrl] = useState("");
   const [criteria, setCriteria] = useState("");
   const [amount, setAmount] = useState("0.01");
   const [lastTx, setLastTx] = useState("");
+  const [finalityPendingId, setFinalityPendingId] = useState<string | null>(null);
 
   const items = bounties.data ?? [];
   const stats = useMemo(() => ({
@@ -276,7 +303,7 @@ export function MergeProofApp() {
     active: items.filter((item) => ["OPEN", "SUBMITTED", "REVISION_REQUESTED"].includes(item.status)).length,
     paid: items.filter((item) => item.status === "RELEASED").length,
   }), [items]);
-  const busy = createBounty.isPending || submitWork.isPending || evaluate.isPending || withdraw.isPending || cancel.isPending;
+  const busy = createBounty.isPending || submitWork.isPending || evaluate.isPending || withdraw.isPending || cancel.isPending || recover.isPending;
   const issueUrlValid = isNumberedGitHubUrl(issueUrl, "issues");
 
   const capture = (hash: string) => {
@@ -427,6 +454,7 @@ export function MergeProofApp() {
                   bounty={bounty}
                   address={address}
                   busy={busy}
+                  finalityPending={finalityPendingId === bounty.id}
                   onSubmit={async (id, pullRequestUrl, ownershipProofUrl) => {
                     try {
                       const receipt = await submitWork.mutateAsync({
@@ -439,10 +467,12 @@ export function MergeProofApp() {
                     } catch (error) { fail(error); }
                   }}
                   onEvaluate={async (id) => {
+                    setFinalityPendingId(id);
                     try {
                       const receipt = await evaluate.mutateAsync({ id, onSubmitted: capture });
                       finish(receipt, "Validator judgment completed");
                     } catch (error) { fail(error); }
+                    finally { setFinalityPendingId(null); }
                   }}
                   onWithdraw={async (id) => {
                     try {
@@ -454,6 +484,12 @@ export function MergeProofApp() {
                     try {
                       const receipt = await cancel.mutateAsync({ id, onSubmitted: capture });
                       finish(receipt, "Escrow refund initiated");
+                    } catch (error) { fail(error); }
+                  }}
+                  onRecover={async (id) => {
+                    try {
+                      const receipt = await recover.mutateAsync({ id, onSubmitted: capture });
+                      finish(receipt, "Stuck submission recovered; bounty reopened");
                     } catch (error) { fail(error); }
                   }}
                 />

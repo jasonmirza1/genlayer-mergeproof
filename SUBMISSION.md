@@ -15,11 +15,13 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 - GitHub repository: https://github.com/jasonmirza1/genlayer-mergeproof
 - Intelligent Contract source: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/contracts/mergeproof.py
 - Direct contract tests: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/tests/direct/test_mergeproof.py
+- Integration ownership-negative test: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/tests/integration/test_mergeproof_ownership.py
 - Live app: https://genlayer-mergeproof.vercel.app
 - Demo video: https://youtu.be/m0RhEOSz7jc
-- Bradbury contract: https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0
-- Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0xd9196a30941f662bd4bcceea9a6d0d6990ae94abb1c6a11dcf64a20ec996f03f
-- Corrected ownership settlement: https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5
+- Current Bradbury contract: https://explorer-bradbury.genlayer.com/address/0x6312A9ED01a500f752C1F9d328473a6572b135bA
+- Current Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0xea001ba0d446c13253647a088bf58dced2655cf1ee6a21715d1bf9197ba403dd
+- Previous corrected ownership deployment: https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0
+- Corrected ownership settlement on the previous corrected deployment: https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5
 - Ownership-proof Gist: https://gist.github.com/jasonmirza1/a1bd857282950b18b8162f87e64c0a9c
 - Merged evidence pull request: https://github.com/jasonmirza1/genlayer-mergeproof/pull/2
 - Corrected paid-state screenshot: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/docs/mergeproof-paid.png
@@ -31,7 +33,9 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 3. Confirm equivalence compares the outcome, criterion coverage, Gist owner/PR author match, and exact wallet challenge.
 4. Inspect `test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet` and confirm failed ownership transfers no funds.
 5. Confirm escrow is supplied through a payable call and released only after an approved judgment with verified ownership.
-6. Run the direct tests and frontend production build using the README commands.
+6. Inspect `recover_submission`: only the sponsor can reopen a `SUBMITTED` bounty, and only after the bounded two-hour recovery delay.
+7. Confirm the frontend reads `latest-final` state, waits for `FINALIZED` after judgment, and shows an accepted-but-awaiting-finality message before payment is complete.
+8. Run the direct tests, guarded integration test, and frontend production build using the README commands.
 
 ## Demo Checklist
 
@@ -41,3 +45,13 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 - Validator judgment displays its evidence summary
 - Approved bounty changes to Paid and shows the transaction in Bradbury Explorer
 - A deliberately incomplete submission demonstrates Revision requested
+- A submitted bounty exposes bounded sponsor recovery, and the ownership-negative integration test shows a mismatched Gist cannot release funds
+
+## Steward follow-up completed
+
+This revision addresses the requested review follow-up:
+
+- The primary contract evidence is updated to the current ownership-bound Bradbury deployment and its corrected settlement transaction.
+- `recover_submission` provides a bounded sponsor recovery path for a submission stuck in `SUBMITTED`.
+- Judgment waits for finalized state in the frontend, while reads use finalized state so `RELEASED` is not presented as paid during the finality window.
+- The opt-in integration test exercises a qualifying pull request with a mismatched ownership Gist and asserts that escrow remains unreleased.

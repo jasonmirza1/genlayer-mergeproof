@@ -46,6 +46,8 @@ function normalizeBounty(raw: any): Bounty | null {
     verdict: String(bounty.verdict ?? ""),
     evidence_summary: String(bounty.evidence_summary ?? ""),
     unmet_criteria: parseList(bounty.unmet_criteria),
+    submitted_at: Number(bounty.submitted_at ?? 0),
+    recovery_at: Number(bounty.recovery_at ?? 0),
   };
 }
 
@@ -101,6 +103,7 @@ export class MergeProofClient {
     args: unknown[],
     value: bigint,
     onSubmitted?: (hash: string) => void,
+    finality: "ACCEPTED" | "FINALIZED" = "ACCEPTED",
   ): Promise<TransactionReceipt> {
     const estimate = await estimateWriteFeePreset(
       this.client,
@@ -119,7 +122,7 @@ export class MergeProofClient {
 
     const receipt = await this.client.waitForTransactionReceipt({
       hash,
-      status: "ACCEPTED" as any,
+      status: finality as any,
       retries: 180,
       interval: 5000,
     });
@@ -157,7 +160,7 @@ export class MergeProofClient {
   }
 
   evaluateSubmission(bountyId: string, onSubmitted?: (hash: string) => void) {
-    return this.write("evaluate_submission", [bountyId], 0n, onSubmitted);
+    return this.write("evaluate_submission", [bountyId], 0n, onSubmitted, "FINALIZED");
   }
 
   withdrawSubmission(bountyId: string, onSubmitted?: (hash: string) => void) {
@@ -168,6 +171,10 @@ export class MergeProofClient {
     return this.write("cancel_bounty", [bountyId], 0n, onSubmitted);
   }
 
+  recoverSubmission(bountyId: string, onSubmitted?: (hash: string) => void) {
+    return this.write("recover_submission", [bountyId], 0n, onSubmitted);
+  }
+
   async getBounties(): Promise<Bounty[]> {
     const count = await this.getBountyCount();
     if (count === 0) return [];
@@ -176,6 +183,7 @@ export class MergeProofClient {
       address: this.contractAddress,
       functionName: "get_bounties",
       args: [start, Math.min(25, count)],
+      transactionHashVariant: "latest-final",
     });
     const values = Array.isArray(raw) ? raw : Array.from(raw?.values?.() ?? []);
     return values.map(normalizeBounty).filter((value): value is Bounty => Boolean(value)).reverse();
@@ -186,6 +194,7 @@ export class MergeProofClient {
       address: this.contractAddress,
       functionName: "get_bounty_count",
       args: [],
+      transactionHashVariant: "latest-final",
     });
     return Number(count) || 0;
   }
