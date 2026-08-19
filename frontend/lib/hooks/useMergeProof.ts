@@ -30,12 +30,14 @@ export function useMergeProof(address?: string | null) {
       acceptanceCriteria: string;
       value: bigint;
       onSubmitted?: (hash: string) => void;
+      onAccepted?: (hash: string) => void;
     }) => client.createBounty(
       input.title,
       input.issueUrl,
       input.acceptanceCriteria,
       input.value,
       input.onSubmitted,
+      input.onAccepted,
     ),
     onSuccess: refresh,
   });
@@ -46,36 +48,50 @@ export function useMergeProof(address?: string | null) {
       pullRequestUrl: string;
       ownershipProofUrl: string;
       onSubmitted?: (hash: string) => void;
+      onAccepted?: (hash: string) => void;
     }) => client.submitWork(
       input.id,
       input.pullRequestUrl,
       input.ownershipProofUrl,
       input.onSubmitted,
+      input.onAccepted,
     ),
     onSuccess: refresh,
   });
 
   const evaluate = useMutation({
-    mutationFn: (input: { id: string; onSubmitted?: (hash: string) => void }) =>
-      client.evaluateSubmission(input.id, input.onSubmitted),
+    mutationFn: (input: {
+      id: string;
+      onSubmitted?: (hash: string) => void;
+      onAccepted?: (hash: string) => void;
+    }) => client.evaluateSubmission(input.id, input.onSubmitted, input.onAccepted),
     onSuccess: refresh,
   });
 
   const withdraw = useMutation({
-    mutationFn: (input: { id: string; onSubmitted?: (hash: string) => void }) =>
-      client.withdrawSubmission(input.id, input.onSubmitted),
+    mutationFn: (input: {
+      id: string;
+      onSubmitted?: (hash: string) => void;
+      onAccepted?: (hash: string) => void;
+    }) => client.withdrawSubmission(input.id, input.onSubmitted, input.onAccepted),
     onSuccess: refresh,
   });
 
   const cancel = useMutation({
-    mutationFn: (input: { id: string; onSubmitted?: (hash: string) => void }) =>
-      client.cancelBounty(input.id, input.onSubmitted),
+    mutationFn: (input: {
+      id: string;
+      onSubmitted?: (hash: string) => void;
+      onAccepted?: (hash: string) => void;
+    }) => client.cancelBounty(input.id, input.onSubmitted, input.onAccepted),
     onSuccess: refresh,
   });
 
   const recover = useMutation({
-    mutationFn: (input: { id: string; onSubmitted?: (hash: string) => void }) =>
-      client.recoverSubmission(input.id, input.onSubmitted),
+    mutationFn: (input: {
+      id: string;
+      onSubmitted?: (hash: string) => void;
+      onAccepted?: (hash: string) => void;
+    }) => client.recoverSubmission(input.id, input.onSubmitted, input.onAccepted),
     onSuccess: refresh,
   });
 

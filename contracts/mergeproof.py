@@ -1,7 +1,7 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 import json
-import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from genlayer import *
 
@@ -46,7 +46,7 @@ class MergeProof(gl.Contract):
         pass
 
     def _now_seconds(self) -> int:
-        return int(time.time())
+        return int(datetime.now(timezone.utc).timestamp())
 
     def _parse_github_url(self, url: str, resource: str) -> tuple:
         normalized = url.strip()

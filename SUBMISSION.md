@@ -18,8 +18,9 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 - Integration ownership-negative test: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/tests/integration/test_mergeproof_ownership.py
 - Live app: https://genlayer-mergeproof.vercel.app
 - Demo video: https://youtu.be/m0RhEOSz7jc
-- Current Bradbury contract: https://explorer-bradbury.genlayer.com/address/0x6312A9ED01a500f752C1F9d328473a6572b135bA
-- Current Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0xea001ba0d446c13253647a088bf58dced2655cf1ee6a21715d1bf9197ba403dd
+- Current Bradbury contract: https://explorer-bradbury.genlayer.com/address/0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB
+- Current Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b
+- Current ownership-bound settlement transaction: PENDING - run one complete bounty on the current deployment before resubmitting
 - Previous corrected ownership deployment: https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0
 - Corrected ownership settlement on the previous corrected deployment: https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5
 - Ownership-proof Gist: https://gist.github.com/jasonmirza1/a1bd857282950b18b8162f87e64c0a9c
@@ -35,7 +36,7 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 5. Confirm escrow is supplied through a payable call and released only after an approved judgment with verified ownership.
 6. Inspect `recover_submission`: only the sponsor can reopen a `SUBMITTED` bounty, and only after the bounded two-hour recovery delay.
 7. Confirm the frontend reads `latest-final` state, waits for `FINALIZED` after judgment, and shows an accepted-but-awaiting-finality message before payment is complete.
-8. Run the direct tests, guarded integration test, and frontend production build using the README commands.
+8. Run the always-on direct regression tests and frontend production build using the README commands. The guarded Studio integration test requires a running compatible endpoint and is not claimed as part of the default test run.
 
 ## Demo Checklist
 
@@ -51,7 +52,7 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 
 This revision addresses the requested review follow-up:
 
-- The primary contract evidence is updated to the current ownership-bound Bradbury deployment and its corrected settlement transaction.
+- The primary contract evidence is updated to the current ownership-bound Bradbury deployment. Its end-to-end settlement link remains explicitly pending until that transaction is completed on this exact address; the older settlement is retained only as prior ownership-flow evidence.
 - `recover_submission` provides a bounded sponsor recovery path for a submission stuck in `SUBMITTED`.
-- Judgment waits for finalized state in the frontend, while reads use finalized state so `RELEASED` is not presented as paid during the finality window.
-- The opt-in integration test exercises a qualifying pull request with a mismatched ownership Gist and asserts that escrow remains unreleased.
+- Every frontend write exposes submitted and accepted states, then waits for finalized state before refreshing finalized reads or presenting completion.
+- The always-run direct regression proves a qualifying pull request with a mismatched ownership Gist transfers no funds to the claimant and remains refundable only by the sponsor. A guarded Studio integration test is also provided for compatible environments.

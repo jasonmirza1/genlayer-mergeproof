@@ -396,11 +396,17 @@ def test_sponsor_can_recover_stuck_submission_after_bounded_delay(monkeypatch):
         contract.recover_submission("1")
 
     submitted_at = contract.get_bounty("1")["submitted_at"]
-    monkeypatch.setattr(
-        module.time,
-        "time",
-        lambda: submitted_at + module.SUBMISSION_RECOVERY_DELAY_SECONDS + 1,
-    )
+
+    class FutureDatetime:
+        @classmethod
+        def now(cls, _timezone):
+            return types.SimpleNamespace(
+                timestamp=lambda: submitted_at
+                + module.SUBMISSION_RECOVERY_DELAY_SECONDS
+                + 1,
+            )
+
+    monkeypatch.setattr(module, "datetime", FutureDatetime)
     recovered = contract.recover_submission("1")
 
     assert recovered["status"] == "OPEN"
@@ -448,7 +454,19 @@ def test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet():
 
     assert judged["status"] == "REVISION_REQUESTED"
     assert judged["worker"] == "0xThief"
+    assert judged["claimant_github"] == "real-author"
+    assert judged["amount"] == 10**18
+    assert "does not control" in judged["evidence_summary"]
     assert transfers == []
+
+    _set_sender("0xThief")
+    with pytest.raises(Exception, match="Only the sponsor"):
+        contract.cancel_bounty("1")
+
+    _set_sender("0xSponsor")
+    refunded = contract.cancel_bounty("1")
+    assert refunded["status"] == "REFUNDED"
+    assert transfers == [("0xSponsor", 10**18)]
 
 
 def test_bounty_views_serialize_records():

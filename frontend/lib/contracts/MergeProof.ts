@@ -6,6 +6,9 @@ import {
 } from "../genlayer/fees";
 import type { Bounty, BountyStatus, TransactionReceipt } from "./types";
 
+const RECEIPT_POLL_INTERVAL_MS = 5000;
+const RECEIPT_WAIT_RETRIES = 1080;
+
 function toPlainObject(value: any): any {
   if (value instanceof Map) {
     return Array.from(value.entries()).reduce((result: Record<string, any>, [key, item]) => {
@@ -103,7 +106,7 @@ export class MergeProofClient {
     args: unknown[],
     value: bigint,
     onSubmitted?: (hash: string) => void,
-    finality: "ACCEPTED" | "FINALIZED" = "ACCEPTED",
+    onAccepted?: (hash: string) => void,
   ): Promise<TransactionReceipt> {
     const estimate = await estimateWriteFeePreset(
       this.client,
@@ -120,14 +123,23 @@ export class MergeProofClient {
     });
     onSubmitted?.(hash);
 
-    const receipt = await this.client.waitForTransactionReceipt({
+    const acceptedReceipt = await this.client.waitForTransactionReceipt({
       hash,
-      status: finality as any,
-      retries: 180,
-      interval: 5000,
+      status: "ACCEPTED",
+      retries: RECEIPT_WAIT_RETRIES,
+      interval: RECEIPT_POLL_INTERVAL_MS,
     });
-    assertSuccessfulTransaction(receipt);
-    return receipt as TransactionReceipt;
+    assertSuccessfulTransaction(acceptedReceipt);
+    onAccepted?.(hash);
+
+    const finalizedReceipt = await this.client.waitForTransactionReceipt({
+      hash,
+      status: "FINALIZED",
+      retries: RECEIPT_WAIT_RETRIES,
+      interval: RECEIPT_POLL_INTERVAL_MS,
+    });
+    assertSuccessfulTransaction(finalizedReceipt);
+    return finalizedReceipt as TransactionReceipt;
   }
 
   createBounty(
@@ -136,12 +148,14 @@ export class MergeProofClient {
     acceptanceCriteria: string,
     value: bigint,
     onSubmitted?: (hash: string) => void,
+    onAccepted?: (hash: string) => void,
   ) {
     return this.write(
       "create_bounty",
       [title, issueUrl, acceptanceCriteria],
       value,
       onSubmitted,
+      onAccepted,
     );
   }
 
@@ -150,29 +164,47 @@ export class MergeProofClient {
     pullRequestUrl: string,
     ownershipProofUrl: string,
     onSubmitted?: (hash: string) => void,
+    onAccepted?: (hash: string) => void,
   ) {
     return this.write(
       "submit_work",
       [bountyId, pullRequestUrl, ownershipProofUrl],
       0n,
       onSubmitted,
+      onAccepted,
     );
   }
 
-  evaluateSubmission(bountyId: string, onSubmitted?: (hash: string) => void) {
-    return this.write("evaluate_submission", [bountyId], 0n, onSubmitted, "FINALIZED");
+  evaluateSubmission(
+    bountyId: string,
+    onSubmitted?: (hash: string) => void,
+    onAccepted?: (hash: string) => void,
+  ) {
+    return this.write("evaluate_submission", [bountyId], 0n, onSubmitted, onAccepted);
   }
 
-  withdrawSubmission(bountyId: string, onSubmitted?: (hash: string) => void) {
-    return this.write("withdraw_submission", [bountyId], 0n, onSubmitted);
+  withdrawSubmission(
+    bountyId: string,
+    onSubmitted?: (hash: string) => void,
+    onAccepted?: (hash: string) => void,
+  ) {
+    return this.write("withdraw_submission", [bountyId], 0n, onSubmitted, onAccepted);
   }
 
-  cancelBounty(bountyId: string, onSubmitted?: (hash: string) => void) {
-    return this.write("cancel_bounty", [bountyId], 0n, onSubmitted);
+  cancelBounty(
+    bountyId: string,
+    onSubmitted?: (hash: string) => void,
+    onAccepted?: (hash: string) => void,
+  ) {
+    return this.write("cancel_bounty", [bountyId], 0n, onSubmitted, onAccepted);
   }
 
-  recoverSubmission(bountyId: string, onSubmitted?: (hash: string) => void) {
-    return this.write("recover_submission", [bountyId], 0n, onSubmitted);
+  recoverSubmission(
+    bountyId: string,
+    onSubmitted?: (hash: string) => void,
+    onAccepted?: (hash: string) => void,
+  ) {
+    return this.write("recover_submission", [bountyId], 0n, onSubmitted, onAccepted);
   }
 
   async getBounties(): Promise<Bounty[]> {

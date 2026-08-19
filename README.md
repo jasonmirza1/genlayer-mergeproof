@@ -39,8 +39,9 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 - Integration negative test: [`tests/integration/test_mergeproof_ownership.py`](tests/integration/test_mergeproof_ownership.py)
 - Frontend: <https://genlayer-mergeproof.vercel.app>
 - Bradbury network: chain ID `4221`
-- Current Bradbury contract: [`0x6312A9ED01a500f752C1F9d328473a6572b135bA`](https://explorer-bradbury.genlayer.com/address/0x6312A9ED01a500f752C1F9d328473a6572b135bA)
-- Current deployment transaction: [`0xea001ba0d446c13253647a088bf58dced2655cf1ee6a21715d1bf9197ba403dd`](https://explorer-bradbury.genlayer.com/tx/0xea001ba0d446c13253647a088bf58dced2655cf1ee6a21715d1bf9197ba403dd)
+- Current Bradbury contract: [`0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB`](https://explorer-bradbury.genlayer.com/address/0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB)
+- Current deployment transaction: [`0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b`](https://explorer-bradbury.genlayer.com/tx/0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b)
+- Current ownership-bound settlement: pending one end-to-end bounty run on the current deployment
 - Previous corrected ownership deployment: [`0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0`](https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0)
 - Verified ownership settlement on the previous corrected deployment: [`0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5`](https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5)
 - Ownership proof: [`jasonmirza1/a1bd857282950b18b8162f87e64c0a9c`](https://gist.github.com/jasonmirza1/a1bd857282950b18b8162f87e64c0a9c)
@@ -48,7 +49,7 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 
 ![MergeProof paid bounty and validator judgment](docs/mergeproof-paid.png)
 
-Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; and `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership. The `0x746C...` deployment is retained as prior corrected ownership evidence; the current submission deployment is `0x6312...`.
+Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership; and `0x6312A9ED01a500f752C1F9d328473a6572b135bA` was superseded by deterministic recovery timing and full accepted-to-finalized frontend handling. The `0x746C...` deployment is retained only as prior ownership-settlement evidence. The current submission deployment is `0xFA8B...`.
 
 ### State lifecycle
 
@@ -61,7 +62,7 @@ OPEN -> SUBMITTED -> RELEASED
   +--------------------+-> REFUNDED
 ```
 
-`RELEASED` is only surfaced by the frontend from finalized contract state. During the finality window, the UI shows that consensus was accepted but payment is still awaiting finality.
+`RELEASED` is only surfaced by the frontend from finalized contract state. Every write first reports submission, then accepted consensus, and waits for `FINALIZED` before refreshing the finalized ledger or showing completion. The polling window is long enough for Bradbury's observed consensus and finality delays.
 
 ## Run locally
 

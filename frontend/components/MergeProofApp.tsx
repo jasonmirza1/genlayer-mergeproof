@@ -296,6 +296,7 @@ export function MergeProofApp() {
   const [amount, setAmount] = useState("0.01");
   const [lastTx, setLastTx] = useState("");
   const [finalityPendingId, setFinalityPendingId] = useState<string | null>(null);
+  const [transactionPhase, setTransactionPhase] = useState<"idle" | "submitted" | "accepted">("idle");
 
   const items = bounties.data ?? [];
   const stats = useMemo(() => ({
@@ -308,18 +309,33 @@ export function MergeProofApp() {
 
   const capture = (hash: string) => {
     setLastTx(hash);
+    setFinalityPendingId(null);
+    setTransactionPhase("submitted");
     toast.info("Transaction submitted", { description: "Waiting for GenLayer consensus." });
+  };
+
+  const markAccepted = (hash: string, bountyId?: string) => {
+    setLastTx(hash);
+    setFinalityPendingId(bountyId ?? null);
+    setTransactionPhase("accepted");
+    toast.info("Consensus accepted", { description: "Waiting for the Bradbury finality window." });
   };
 
   const finish = (receipt: any, message: string) => {
     const hash = transactionHash(receipt);
     if (hash) setLastTx(hash);
+    setFinalityPendingId(null);
+    setTransactionPhase("idle");
     toast.success(message);
   };
 
-  const fail = (error: any) => toast.error("Transaction failed", {
-    description: error?.message || "Check the wallet and try again.",
-  });
+  const fail = (error: any) => {
+    setFinalityPendingId(null);
+    setTransactionPhase("idle");
+    toast.error("Transaction failed", {
+      description: error?.message || "Check the wallet and try again.",
+    });
+  };
 
   const handleCreate = async () => {
     if (!issueUrlValid) {
@@ -336,6 +352,7 @@ export function MergeProofApp() {
         acceptanceCriteria: criteria,
         value,
         onSubmitted: capture,
+        onAccepted: markAccepted,
       });
       finish(receipt, "Bounty funded and published");
       setTitle("");
@@ -372,6 +389,20 @@ export function MergeProofApp() {
 
       {!contractAddress && (
         <div className="system-alert"><AlertTriangle /> Bradbury contract address is not configured.</div>
+      )}
+
+      {transactionPhase === "submitted" && (
+        <div className="finality-note">
+          <LoaderCircle className="animate-spin" />
+          <span>Transaction submitted; waiting for validator consensus.</span>
+        </div>
+      )}
+
+      {transactionPhase === "accepted" && !finalityPendingId && (
+        <div className="finality-note">
+          <Clock3 />
+          <span>Accepted by consensus; awaiting finality before the finalized ledger is refreshed.</span>
+        </div>
       )}
 
       <div className="toolbar">
@@ -462,33 +493,48 @@ export function MergeProofApp() {
                         pullRequestUrl,
                         ownershipProofUrl,
                         onSubmitted: capture,
+                        onAccepted: markAccepted,
                       });
                       finish(receipt, "Pull request submitted");
                     } catch (error) { fail(error); }
                   }}
                   onEvaluate={async (id) => {
-                    setFinalityPendingId(id);
                     try {
-                      const receipt = await evaluate.mutateAsync({ id, onSubmitted: capture });
+                      const receipt = await evaluate.mutateAsync({
+                        id,
+                        onSubmitted: capture,
+                        onAccepted: (hash) => markAccepted(hash, id),
+                      });
                       finish(receipt, "Validator judgment completed");
                     } catch (error) { fail(error); }
-                    finally { setFinalityPendingId(null); }
                   }}
                   onWithdraw={async (id) => {
                     try {
-                      const receipt = await withdraw.mutateAsync({ id, onSubmitted: capture });
+                      const receipt = await withdraw.mutateAsync({
+                        id,
+                        onSubmitted: capture,
+                        onAccepted: markAccepted,
+                      });
                       finish(receipt, "Submission withdrawn; bounty reopened");
                     } catch (error) { fail(error); }
                   }}
                   onCancel={async (id) => {
                     try {
-                      const receipt = await cancel.mutateAsync({ id, onSubmitted: capture });
+                      const receipt = await cancel.mutateAsync({
+                        id,
+                        onSubmitted: capture,
+                        onAccepted: markAccepted,
+                      });
                       finish(receipt, "Escrow refund initiated");
                     } catch (error) { fail(error); }
                   }}
                   onRecover={async (id) => {
                     try {
-                      const receipt = await recover.mutateAsync({ id, onSubmitted: capture });
+                      const receipt = await recover.mutateAsync({
+                        id,
+                        onSubmitted: capture,
+                        onAccepted: markAccepted,
+                      });
                       finish(receipt, "Stuck submission recovered; bounty reopened");
                     } catch (error) { fail(error); }
                   }}
