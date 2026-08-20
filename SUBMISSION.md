@@ -20,7 +20,7 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 - Demo video: https://youtu.be/m0RhEOSz7jc
 - Current Bradbury contract: https://explorer-bradbury.genlayer.com/address/0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB
 - Current Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b
-- Current ownership-bound settlement transaction: PENDING - run one complete bounty on the current deployment before resubmitting
+- Finalized ownership-bound settlement transaction: https://explorer-bradbury.genlayer.com/tx/0x55f6f0feb42c0bda1284ea96a3b8e6e1ed838a826171315e6aacee5944406c1e
 - Previous corrected ownership deployment: https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0
 - Corrected ownership settlement on the previous corrected deployment: https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5
 - Ownership-proof Gist: https://gist.github.com/jasonmirza1/a1bd857282950b18b8162f87e64c0a9c
@@ -52,7 +52,7 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 
 This revision addresses the requested review follow-up:
 
-- The primary contract evidence is updated to the current ownership-bound Bradbury deployment. Its end-to-end settlement link remains explicitly pending until that transaction is completed on this exact address; the older settlement is retained only as prior ownership-flow evidence.
+- The primary contract evidence points to the current ownership-bound Bradbury deployment, and the finalized end-to-end settlement on that exact contract returned `ENOUGH`, `APPROVE`, and `ownership_verified` before releasing escrow. The older settlement is retained only as prior ownership-flow evidence.
 - `recover_submission` provides a bounded sponsor recovery path for a submission stuck in `SUBMITTED`.
 - Every frontend write exposes submitted and accepted states, then waits for finalized state before refreshing finalized reads or presenting completion.
 - The always-run direct regression proves a qualifying pull request with a mismatched ownership Gist transfers no funds to the claimant and remains refundable only by the sponsor. A guarded Studio integration test is also provided for compatible environments.

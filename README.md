@@ -41,7 +41,7 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 - Bradbury network: chain ID `4221`
 - Current Bradbury contract: [`0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB`](https://explorer-bradbury.genlayer.com/address/0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB)
 - Current deployment transaction: [`0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b`](https://explorer-bradbury.genlayer.com/tx/0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b)
-- Current ownership-bound settlement: pending one end-to-end bounty run on the current deployment
+- Finalized ownership-bound settlement: [`0x55f6f0feb42c0bda1284ea96a3b8e6e1ed838a826171315e6aacee5944406c1e`](https://explorer-bradbury.genlayer.com/tx/0x55f6f0feb42c0bda1284ea96a3b8e6e1ed838a826171315e6aacee5944406c1e)
 - Previous corrected ownership deployment: [`0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0`](https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0)
 - Verified ownership settlement on the previous corrected deployment: [`0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5`](https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5)
 - Ownership proof: [`jasonmirza1/a1bd857282950b18b8162f87e64c0a9c`](https://gist.github.com/jasonmirza1/a1bd857282950b18b8162f87e64c0a9c)
