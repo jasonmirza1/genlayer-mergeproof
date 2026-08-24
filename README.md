@@ -34,6 +34,8 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 
 ## Evidence Lock milestone
 
+The complete implementation and verification map is documented in [`docs/EVIDENCE_LOCK_PROOF.md`](docs/EVIDENCE_LOCK_PROOF.md).
+
 The Evidence Lock milestone closes the time-of-check/time-of-use gap between submission and validator review. Before `submit_work`, the frontend resolves and displays two immutable GitHub identifiers:
 
 - the pull request's full 40-character final merge commit;
