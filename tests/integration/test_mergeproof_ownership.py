@@ -22,6 +22,7 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
     issue_url = "https://github.com/example/mergeproof-fixture/issues/1"
     pull_request_url = "https://github.com/example/mergeproof-fixture/pull/2"
     ownership_proof_url = "https://gist.github.com/thief/abcdef123"
+    gist_revision = "2" * 40
     contract_path = Path(__file__).parents[2] / "contracts" / "mergeproof.py"
 
     factory = get_contract_factory(contract_file_path=contract_path)
@@ -38,7 +39,7 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
 
     worker_contract = contract.connect(accounts[1])
     submitted = worker_contract.submit_work(
-        args=["1", pull_request_url, ownership_proof_url]
+        args=["1", pull_request_url, ownership_proof_url, "1" * 40, gist_revision]
     ).transact()
     assert tx_execution_succeeded(submitted)
 
@@ -50,6 +51,7 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
                         "outcome": "APPROVE",
                         "evidence_quality": "ENOUGH",
                         "ownership_verified": False,
+                        "evidence_locked": True,
                         "github_author": "real-author",
                         "summary": "The PR qualifies, but the claimant does not control the author account.",
                         "unmet_criteria": ["Ownership Gist belongs to a different GitHub account"],
@@ -63,7 +65,11 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
             "nondet_web_request": {
                 issue_url: {"method": "GET", "status": 200, "body": "Issue evidence"},
                 pull_request_url: {"method": "GET", "status": 200, "body": "Merged pull request evidence"},
-                ownership_proof_url: {"method": "GET", "status": 200, "body": "Gist owned by thief"},
+                ownership_proof_url + "/" + gist_revision: {
+                    "method": "GET",
+                    "status": 200,
+                    "body": "Gist owned by thief",
+                },
             }
         },
     )

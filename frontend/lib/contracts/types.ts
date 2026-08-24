@@ -13,6 +13,8 @@ export interface Bounty {
   issue_url: string;
   pull_request_url: string;
   ownership_proof_url: string;
+  locked_pr_commit: string;
+  locked_gist_revision: string;
   claimant_github: string;
   acceptance_criteria: string;
   amount: bigint;

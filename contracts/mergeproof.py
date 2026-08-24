@@ -28,6 +28,8 @@ class Bounty:
     issue_url: str
     pull_request_url: str
     ownership_proof_url: str
+    locked_pr_commit: str
+    locked_gist_revision: str
     claimant_github: str
     acceptance_criteria: str
     amount: u256
@@ -98,6 +100,14 @@ class MergeProof(gl.Contract):
 
         return prefix + parts[0] + "/" + parts[1].lower(), parts[0].lower()
 
+    def _parse_git_sha(self, value: str, label: str) -> str:
+        normalized = value.strip().lower()
+        if len(normalized) != 40 or not all(
+            char in "0123456789abcdef" for char in normalized
+        ):
+            raise gl.vm.UserError(label + " must be a full 40-character Git SHA")
+        return normalized
+
     def _as_string_list(self, value) -> list:
         if isinstance(value, list):
             return [str(item)[0:240] for item in value[0:6]]
@@ -119,11 +129,16 @@ class MergeProof(gl.Contract):
         if not ownership_verified:
             outcome = "REVISION"
 
+        evidence_locked = raw.get("evidence_locked") is True
+        if not evidence_locked:
+            outcome = "REVISION"
+
         summary = str(raw.get("summary", "Evidence was not sufficient."))[0:600]
         return {
             "outcome": outcome,
             "evidence_quality": evidence_quality,
             "ownership_verified": ownership_verified,
+            "evidence_locked": evidence_locked,
             "github_author": str(raw.get("github_author", ""))[0:80],
             "summary": summary,
             "unmet_criteria": self._as_string_list(raw.get("unmet_criteria", [])),
@@ -136,13 +151,16 @@ class MergeProof(gl.Contract):
         issue_url: str,
         pull_request_url: str,
         ownership_proof_url: str,
+        locked_pr_commit: str,
+        locked_gist_revision: str,
         bounty_id: str,
         claimant_wallet: str,
     ) -> dict:
         def collect_and_judge() -> dict:
             issue_page = gl.nondet.web.render(issue_url, mode="text")
             pull_request_page = gl.nondet.web.render(pull_request_url, mode="text")
-            ownership_page = gl.nondet.web.render(ownership_proof_url, mode="text")
+            locked_ownership_url = ownership_proof_url + "/" + locked_gist_revision
+            ownership_page = gl.nondet.web.render(locked_ownership_url, mode="text")
 
             task = f"""
 Judge whether a public GitHub pull request satisfies a bounty's explicit
@@ -167,11 +185,17 @@ Issue evidence:
 GitHub pull request URL:
 {pull_request_url}
 
+Locked pull-request head commit:
+{locked_pr_commit}
+
 Pull request evidence:
 {pull_request_page[0:14000]}
 
 GitHub ownership proof URL:
-{ownership_proof_url}
+{locked_ownership_url}
+
+Locked ownership-Gist revision:
+{locked_gist_revision}
 
 Ownership proof evidence:
 {ownership_page[0:8000]}
@@ -179,6 +203,7 @@ Ownership proof evidence:
 Required ownership challenge values:
 - Bounty: {bounty_id}
 - Pull request: {pull_request_url}
+- Pull request commit: {locked_pr_commit}
 - Wallet: {claimant_wallet}
 
 Return only JSON with exactly these keys:
@@ -186,6 +211,7 @@ Return only JSON with exactly these keys:
   "outcome": "APPROVE" | "REVISION",
   "evidence_quality": "ENOUGH" | "WEAK",
   "ownership_verified": boolean,
+  "evidence_locked": boolean,
   "github_author": string,
   "summary": string,
   "unmet_criteria": string[]
@@ -195,8 +221,13 @@ Decision rules:
 - APPROVE only when the visible issue and pull request evidence materially
   demonstrate that the pull request is merged and every explicit acceptance
   criterion was completed.
+- APPROVE only when the exact locked pull-request commit is visibly the commit
+  merged for the pull request and the ownership evidence comes from the exact
+  locked Gist revision. A force-pushed PR, a different merged commit, an edited
+  Gist, or evidence that does not expose either lock must set evidence_locked
+  to false and REVISION.
 - APPROVE only when the ownership Gist is visibly owned by the same GitHub
-  account that authored the pull request and contains all three exact challenge
+  account that authored the pull request and contains all four exact challenge
   values above. A Gist owned by any other account, a wallet mismatch, or an
   unverifiable PR author must set ownership_verified to false and REVISION.
 - Claims or wallet text on the pull request page do not replace the ownership
@@ -219,7 +250,9 @@ pre-agreed acceptance criteria. They are equivalent only when they reach the
 same APPROVE or REVISION outcome and materially agree about whether each
 acceptance criterion is supported by visible evidence. They must also agree
 that the Gist owner is the pull-request author and that the exact bounty, pull
-request, and claimant wallet challenge values are present. Wording differences
+request, locked commit, and claimant wallet challenge values are present. They
+must agree that the merged commit and Gist revision match the stored evidence
+locks. Wording differences
 in the summary are acceptable. Do not accept outputs as equivalent merely
 because they share valid JSON structure.
 """,
@@ -236,6 +269,8 @@ because they share valid JSON structure.
             "issue_url": bounty.issue_url,
             "pull_request_url": bounty.pull_request_url,
             "ownership_proof_url": bounty.ownership_proof_url,
+            "locked_pr_commit": bounty.locked_pr_commit,
+            "locked_gist_revision": bounty.locked_gist_revision,
             "claimant_github": bounty.claimant_github,
             "acceptance_criteria": bounty.acceptance_criteria,
             "amount": int(bounty.amount),
@@ -255,6 +290,8 @@ because they share valid JSON structure.
         bounty.worker = ""
         bounty.pull_request_url = ""
         bounty.ownership_proof_url = ""
+        bounty.locked_pr_commit = ""
+        bounty.locked_gist_revision = ""
         bounty.claimant_github = ""
         bounty.submitted_at = u256(0)
         bounty.evidence_summary = ""
@@ -290,6 +327,8 @@ because they share valid JSON structure.
             issue_url=normalized_issue,
             pull_request_url="",
             ownership_proof_url="",
+            locked_pr_commit="",
+            locked_gist_revision="",
             claimant_github="",
             acceptance_criteria=clean_criteria,
             amount=amount,
@@ -305,7 +344,12 @@ because they share valid JSON structure.
 
     @gl.public.write
     def submit_work(
-        self, bounty_id: str, pull_request_url: str, ownership_proof_url: str
+        self,
+        bounty_id: str,
+        pull_request_url: str,
+        ownership_proof_url: str,
+        locked_pr_commit: str,
+        locked_gist_revision: str,
     ) -> dict:
         bounty = self._get_bounty_or_error(bounty_id)
         if bounty.status not in ["OPEN", "REVISION_REQUESTED"]:
@@ -318,6 +362,12 @@ because they share valid JSON structure.
         if pr_repo != issue_repo:
             raise gl.vm.UserError("Pull request must belong to the issue repository")
         normalized_proof, _proof_owner = self._parse_gist_url(ownership_proof_url)
+        normalized_pr_commit = self._parse_git_sha(
+            locked_pr_commit, "Pull-request commit"
+        )
+        normalized_gist_revision = self._parse_git_sha(
+            locked_gist_revision, "Gist revision"
+        )
 
         worker = gl.message.sender_address
         if worker.as_hex.lower() == bounty.sponsor.lower():
@@ -326,6 +376,8 @@ because they share valid JSON structure.
         bounty.worker = worker.as_hex
         bounty.pull_request_url = normalized_pr
         bounty.ownership_proof_url = normalized_proof
+        bounty.locked_pr_commit = normalized_pr_commit
+        bounty.locked_gist_revision = normalized_gist_revision
         bounty.claimant_github = ""
         bounty.submitted_at = u256(self._now_seconds())
         bounty.status = "SUBMITTED"
@@ -346,6 +398,8 @@ because they share valid JSON structure.
             str(bounty.issue_url),
             str(bounty.pull_request_url),
             str(bounty.ownership_proof_url),
+            str(bounty.locked_pr_commit),
+            str(bounty.locked_gist_revision),
             str(bounty.id),
             str(bounty.worker),
         )

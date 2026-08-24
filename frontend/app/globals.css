@@ -293,6 +293,12 @@ h1, h2, h3, p { margin: 0; }
 .ownership-challenge > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ownership-links { display: flex; gap: 3px; }
 .ownership-challenge pre { margin-top: 8px; overflow-wrap: anywhere; white-space: pre-wrap; color: #c8d0cf; font: 12px/1.55 var(--font-mono), monospace; }
+.evidence-lock-summary { padding: 12px; border: 1px solid #2f584e; border-radius: 6px; background: #0c1513; }
+.evidence-lock-summary > div { display: flex; align-items: center; gap: 7px; color: #82e4cc; font-size: 12px; font-weight: 700; }
+.evidence-lock-summary svg { width: 15px; }
+.evidence-lock-summary p { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 10px; margin-top: 8px; color: #778485; font-size: 11px; }
+.evidence-lock-summary code { overflow-wrap: anywhere; color: #c8d0cf; font: 11px/1.45 var(--font-mono), Consolas, monospace; }
+.stored-locks { margin-top: 16px; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .empty-state { min-height: 180px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px dashed #354142; border-radius: 8px; color: #839091; }
 .empty-state svg { width: 20px; }

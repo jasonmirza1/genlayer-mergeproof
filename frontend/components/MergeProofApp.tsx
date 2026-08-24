@@ -11,6 +11,7 @@ import {
   ExternalLink,
   FileCheck2,
   GitPullRequest,
+  LockKeyhole,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -22,6 +23,7 @@ import { toast } from "sonner";
 import { useWallet } from "@/lib/genlayer/wallet";
 import { useMergeProof } from "@/lib/hooks/useMergeProof";
 import type { Bounty, BountyStatus } from "@/lib/contracts/types";
+import { resolveGistRevision, resolvePullRequestCommit } from "@/lib/github/evidence";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -100,7 +102,13 @@ function BountyRow({
   bounty: Bounty;
   address: string | null;
   busy: boolean;
-  onSubmit: (id: string, pullRequestUrl: string, ownershipProofUrl: string) => void;
+  onSubmit: (
+    id: string,
+    pullRequestUrl: string,
+    ownershipProofUrl: string,
+    lockedPrCommit: string,
+    lockedGistRevision: string,
+  ) => void;
   onEvaluate: (id: string) => void;
   onWithdraw: (id: string) => void;
   onCancel: (id: string) => void;
@@ -109,20 +117,65 @@ function BountyRow({
 }) {
   const [pullRequestUrl, setPullRequestUrl] = useState("");
   const [ownershipProofUrl, setOwnershipProofUrl] = useState("");
+  const [lockedPrCommit, setLockedPrCommit] = useState("");
+  const [lockedGistRevision, setLockedGistRevision] = useState("");
+  const [lockingEvidence, setLockingEvidence] = useState(false);
   const sponsor = Boolean(address && bounty.sponsor.toLowerCase() === address.toLowerCase());
   const worker = Boolean(address && bounty.worker.toLowerCase() === address.toLowerCase());
   const acceptsWork = bounty.status === "OPEN" || bounty.status === "REVISION_REQUESTED";
   const recoveryReady = bounty.recovery_at === 0 || bounty.recovery_at <= Math.floor(Date.now() / 1000);
   const pullRequestValid = isNumberedGitHubUrl(pullRequestUrl, "pull");
   const ownershipProofValid = isGitHubGistUrl(ownershipProofUrl);
-  const ownershipChallenge = address && pullRequestValid
+  const ownershipChallenge = address && pullRequestValid && lockedPrCommit
     ? [
         "MergeProof ownership proof",
         `Bounty: ${bounty.id}`,
         `Pull request: ${pullRequestUrl.trim()}`,
+        `Pull request commit: ${lockedPrCommit}`,
         `Wallet: ${address}`,
       ].join("\n")
-    : "Enter a pull request URL to generate the ownership challenge.";
+    : "Prepare the pull request commit to generate the ownership challenge.";
+
+  const prepareOwnershipProof = async () => {
+    if (!pullRequestValid) return;
+    setLockingEvidence(true);
+    try {
+      const commit = await resolvePullRequestCommit(pullRequestUrl);
+      setLockedPrCommit(commit);
+      setLockedGistRevision("");
+      toast.success("Pull request commit prepared", {
+        description: "Copy the updated challenge into a public Gist owned by the PR author.",
+      });
+    } catch (error: any) {
+      toast.error("Could not prepare ownership proof", { description: error?.message });
+    } finally {
+      setLockingEvidence(false);
+    }
+  };
+
+  const lockEvidence = async () => {
+    if (!pullRequestValid || !ownershipProofValid || !lockedPrCommit) return;
+    setLockingEvidence(true);
+    try {
+      const [currentCommit, gistRevision] = await Promise.all([
+        resolvePullRequestCommit(pullRequestUrl),
+        resolveGistRevision(ownershipProofUrl),
+      ]);
+      if (currentCommit !== lockedPrCommit) {
+        setLockedPrCommit("");
+        setLockedGistRevision("");
+        throw new Error("The PR head changed. Prepare a new ownership challenge and update the Gist.");
+      }
+      setLockedGistRevision(gistRevision);
+      toast.success("Evidence locked", {
+        description: "The transaction will bind this PR commit and Gist revision.",
+      });
+    } catch (error: any) {
+      toast.error("Could not lock evidence", { description: error?.message });
+    } finally {
+      setLockingEvidence(false);
+    }
+  };
 
   return (
     <article className="bounty-row">
@@ -174,6 +227,14 @@ function BountyRow({
         <p>{bounty.acceptance_criteria}</p>
       </div>
 
+      {(bounty.locked_pr_commit || bounty.locked_gist_revision) && (
+        <div className="evidence-lock-summary stored-locks">
+          <div><LockKeyhole /><span>Stored evidence lock</span></div>
+          <p><span>PR commit</span><code>{bounty.locked_pr_commit || "Not locked"}</code></p>
+          <p><span>Gist revision</span><code>{bounty.locked_gist_revision || "Not locked"}</code></p>
+        </div>
+      )}
+
       {bounty.evidence_summary && (
         <div className="judgment-block">
           <div>
@@ -201,7 +262,11 @@ function BountyRow({
           <div className="submission-fields">
             <Input
               value={pullRequestUrl}
-              onChange={(event) => setPullRequestUrl(event.target.value)}
+              onChange={(event) => {
+                setPullRequestUrl(event.target.value);
+                setLockedPrCommit("");
+                setLockedGistRevision("");
+              }}
               placeholder="https://github.com/owner/repo/pull/123"
               aria-label="Pull request URL"
               aria-invalid={Boolean(pullRequestUrl) && !pullRequestValid}
@@ -209,6 +274,14 @@ function BountyRow({
             {pullRequestUrl && !pullRequestValid && (
               <span className="field-error">Use a numbered GitHub pull request URL.</span>
             )}
+            <Button
+              variant="outline"
+              onClick={prepareOwnershipProof}
+              disabled={busy || lockingEvidence || !pullRequestValid}
+            >
+              {lockingEvidence && !lockedPrCommit ? <LoaderCircle className="animate-spin" /> : <LockKeyhole />}
+              {lockedPrCommit ? "Refresh PR commit" : "Prepare ownership proof"}
+            </Button>
             <div className="ownership-challenge">
               <div>
                 <span className="field-label">Wallet ownership challenge</span>
@@ -217,7 +290,7 @@ function BountyRow({
                     variant="ghost"
                     size="icon-sm"
                     title="Copy ownership challenge"
-                    disabled={!address || !pullRequestValid}
+                    disabled={!address || !pullRequestValid || !lockedPrCommit}
                     onClick={async () => {
                       await navigator.clipboard.writeText(ownershipChallenge);
                       toast.success("Ownership challenge copied");
@@ -234,7 +307,10 @@ function BountyRow({
             </div>
             <Input
               value={ownershipProofUrl}
-              onChange={(event) => setOwnershipProofUrl(event.target.value)}
+              onChange={(event) => {
+                setOwnershipProofUrl(event.target.value);
+                setLockedGistRevision("");
+              }}
               placeholder="https://gist.github.com/github-author/gist-id"
               aria-label="GitHub ownership proof Gist URL"
               aria-invalid={Boolean(ownershipProofUrl) && !ownershipProofValid}
@@ -242,10 +318,31 @@ function BountyRow({
             {ownershipProofUrl && !ownershipProofValid && (
               <span className="field-error">Use a canonical public GitHub Gist URL.</span>
             )}
+            <Button
+              variant="outline"
+              onClick={lockEvidence}
+              disabled={busy || lockingEvidence || !lockedPrCommit || !ownershipProofValid}
+            >
+              {lockingEvidence && lockedPrCommit ? <LoaderCircle className="animate-spin" /> : <LockKeyhole />}
+              Lock evidence
+            </Button>
+            {(lockedPrCommit || lockedGistRevision) && (
+              <div className="evidence-lock-summary">
+                <div><LockKeyhole /><span>{lockedGistRevision ? "Evidence locked" : "Ownership challenge prepared"}</span></div>
+                <p><span>PR commit</span><code>{lockedPrCommit || "Not locked"}</code></p>
+                <p><span>Gist revision</span><code>{lockedGistRevision || "Lock the Gist before submitting"}</code></p>
+              </div>
+            )}
           </div>
           <Button
-            onClick={() => onSubmit(bounty.id, pullRequestUrl, ownershipProofUrl)}
-            disabled={busy || !pullRequestValid || !ownershipProofValid}
+            onClick={() => onSubmit(
+              bounty.id,
+              pullRequestUrl,
+              ownershipProofUrl,
+              lockedPrCommit,
+              lockedGistRevision,
+            )}
+            disabled={busy || lockingEvidence || !pullRequestValid || !ownershipProofValid || !lockedPrCommit || !lockedGistRevision}
           >
             <GitPullRequest /> Submit work
           </Button>
@@ -486,12 +583,14 @@ export function MergeProofApp() {
                   address={address}
                   busy={busy}
                   finalityPending={finalityPendingId === bounty.id}
-                  onSubmit={async (id, pullRequestUrl, ownershipProofUrl) => {
+                  onSubmit={async (id, pullRequestUrl, ownershipProofUrl, lockedPrCommit, lockedGistRevision) => {
                     try {
                       const receipt = await submitWork.mutateAsync({
                         id,
                         pullRequestUrl,
                         ownershipProofUrl,
+                        lockedPrCommit,
+                        lockedGistRevision,
                         onSubmitted: capture,
                         onAccepted: markAccepted,
                       });

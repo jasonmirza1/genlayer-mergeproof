@@ -11,10 +11,10 @@ This is a trust problem rather than a request for a better AI answer: an irrever
 ## Workflow
 
 1. A sponsor creates a bounty from a public GitHub issue, writes specific acceptance criteria, and escrows GEN.
-2. A developer creates a public Gist from the pull-request author's GitHub account containing the app-generated bounty, PR, and wallet ownership challenge.
-3. The developer submits the public pull request and ownership-proof Gist from the wallet named in that challenge.
+2. A developer freezes the pull request's full head commit, then creates a public Gist from the pull-request author's GitHub account containing the app-generated bounty, PR, locked commit, and wallet ownership challenge.
+3. The developer locks the Gist's full revision and submits the public pull request, ownership proof, PR commit, and Gist revision from the wallet named in that challenge.
 4. Any user can trigger evaluation. Validators independently fetch the issue, pull request, and ownership Gist.
-5. Equivalent validator judgments release escrow only when the work qualifies, the Gist owner is the PR author, and the Gist challenge matches the claimant wallet. Missing work or failed ownership requests revision.
+5. Equivalent validator judgments release escrow only when the work qualifies, the locked commit is the merged commit, the exact locked Gist revision is reviewed, the Gist owner is the PR author, and the challenge matches the claimant wallet. Missing, changed, or mismatched evidence requests revision.
 6. The frontend waits for finalized judgment before showing payment as complete. A sponsor may refund an open bounty or a bounty awaiting revision, or reopen a `SUBMITTED` bounty after the bounded two-hour recovery window if evaluation cannot complete and the worker does not withdraw. Released funds cannot be reclaimed.
 
 ## Why GenLayer
@@ -27,10 +27,19 @@ The frontend generates an ownership challenge tied to the bounty ID, canonical p
 
 - the pull-request author is visible;
 - the Gist owner matches that author;
-- the Gist contains the exact bounty, pull-request, and wallet values;
+- the Gist contains the exact bounty, pull-request, locked-commit, and wallet values;
 - the connected claimant wallet matches the challenged wallet.
 
 An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow without a matching Gist controlled by the PR author. The direct test `test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet` proves this failure path transfers no funds.
+
+## Evidence Lock milestone
+
+The Evidence Lock milestone closes the time-of-check/time-of-use gap between submission and validator review. Before `submit_work`, the frontend resolves and displays two immutable GitHub identifiers:
+
+- the pull request's full 40-character head commit;
+- the ownership Gist's full 40-character revision.
+
+Both values are stored with the bounty submission. Validators review the revision-specific Gist URL and must confirm that the stored PR commit is the commit visibly merged by the pull request. A force-push, different merged commit, edited Gist, missing lock, or unverifiable lock forces `REVISION_REQUESTED` and cannot release escrow. The direct regression `test_changed_locked_evidence_cannot_release_escrow` proves that even an otherwise approving judgment transfers no funds when `evidence_locked` is false.
 
 ## Contract
 
@@ -39,8 +48,8 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 - Integration negative test: [`tests/integration/test_mergeproof_ownership.py`](tests/integration/test_mergeproof_ownership.py)
 - Frontend: <https://genlayer-mergeproof.vercel.app>
 - Bradbury network: chain ID `4221`
-- Current Bradbury contract: [`0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB`](https://explorer-bradbury.genlayer.com/address/0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB)
-- Current deployment transaction: [`0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b`](https://explorer-bradbury.genlayer.com/tx/0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b)
+- Current Bradbury Evidence Lock contract: [`0xC690d00c00Be2087d47188D9eEE50A64C0b62E4f`](https://explorer-bradbury.genlayer.com/address/0xC690d00c00Be2087d47188D9eEE50A64C0b62E4f)
+- Current deployment transaction: [`0xe5e8e0f410dfbe4512321abd65972a675dd440345fe51e7bb7e325664628060f`](https://explorer-bradbury.genlayer.com/tx/0xe5e8e0f410dfbe4512321abd65972a675dd440345fe51e7bb7e325664628060f)
 - Finalized ownership-bound settlement: [`0x55f6f0feb42c0bda1284ea96a3b8e6e1ed838a826171315e6aacee5944406c1e`](https://explorer-bradbury.genlayer.com/tx/0x55f6f0feb42c0bda1284ea96a3b8e6e1ed838a826171315e6aacee5944406c1e)
 - Previous corrected ownership deployment: [`0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0`](https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0)
 - Verified ownership settlement on the previous corrected deployment: [`0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5`](https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5)
@@ -49,7 +58,7 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 
 ![MergeProof paid bounty and validator judgment](docs/mergeproof-paid.png)
 
-Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership; and `0x6312A9ED01a500f752C1F9d328473a6572b135bA` was superseded by deterministic recovery timing and full accepted-to-finalized frontend handling. The `0x746C...` deployment is retained only as prior ownership-settlement evidence. The current submission deployment is `0xFA8B...`.
+Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership; and `0x6312A9ED01a500f752C1F9d328473a6572b135bA` was superseded by deterministic recovery timing and full accepted-to-finalized frontend handling. The `0x746C...` deployment is retained only as prior ownership-settlement evidence. The `0xFA8B...` deployment added bounded recovery and finality-aware payment handling but predates immutable evidence locks. The current Evidence Lock deployment is `0xC690...`.
 
 ### State lifecycle
 
@@ -107,6 +116,7 @@ After deployment, put the address in your local `frontend/.env`. Never commit a 
 
 - Only public canonical GitHub issue and pull-request URLs are accepted.
 - Ownership proofs must be canonical public GitHub Gist URLs owned by the pull-request author.
+- Submissions require resolvable full PR-commit and Gist-revision locks; changing either artifact requires a new submission lock.
 - GitHub availability and page rendering affect evidence quality; weak evidence requests revision instead of paying.
 - Validators judge the visible diff and discussion. They do not execute arbitrary repository code.
 - Sponsor cancellation is intentionally limited to `OPEN` and `REVISION_REQUESTED`; it is unavailable during evaluation or after release.

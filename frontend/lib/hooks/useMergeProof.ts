@@ -47,12 +47,16 @@ export function useMergeProof(address?: string | null) {
       id: string;
       pullRequestUrl: string;
       ownershipProofUrl: string;
+      lockedPrCommit: string;
+      lockedGistRevision: string;
       onSubmitted?: (hash: string) => void;
       onAccepted?: (hash: string) => void;
     }) => client.submitWork(
       input.id,
       input.pullRequestUrl,
       input.ownershipProofUrl,
+      input.lockedPrCommit,
+      input.lockedGistRevision,
       input.onSubmitted,
       input.onAccepted,
     ),

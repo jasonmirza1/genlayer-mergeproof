@@ -6,6 +6,9 @@ from pathlib import Path
 
 import pytest
 
+PR_COMMIT = "1" * 40
+GIST_REVISION = "2" * 40
+
 
 class _TreeMap(dict):
     def __class_getitem__(cls, _item):
@@ -55,7 +58,10 @@ class _Web:
         if "/issues/" in url:
             return "Issue: add input validation and tests. Acceptance checklist is visible."
         if "gist.github.com" in url:
-            return "Gist by example. Bounty: 1. Pull request: example/repo/pull/2. Wallet: 0xWorker."
+            return (
+                "Gist by example. Bounty: 1. Pull request: example/repo/pull/2. "
+                f"Pull request commit: {PR_COMMIT}. Wallet: 0xWorker."
+            )
         return "Pull request changes validation code and adds passing tests."
 
 
@@ -65,6 +71,7 @@ class _Nondet:
         "outcome": "APPROVE",
         "evidence_quality": "ENOUGH",
         "ownership_verified": True,
+        "evidence_locked": True,
         "github_author": "example",
         "summary": "The pull request demonstrates every agreed requirement.",
         "unmet_criteria": [],
@@ -193,6 +200,23 @@ def test_rejects_invalid_ownership_proof_urls(url):
         contract._parse_gist_url(url)
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "abc123",
+        "g" * 40,
+        "1" * 39,
+        "1" * 41,
+    ],
+)
+def test_rejects_invalid_evidence_lock_shas(value):
+    module = _load_module()
+    contract = _contract(module)
+
+    with pytest.raises(Exception, match="full 40-character Git SHA"):
+        contract._parse_git_sha(value, "Evidence lock")
+
+
 def test_create_bounty_requires_specific_criteria_and_escrow():
     module = _load_module()
     contract = _contract(module)
@@ -234,15 +258,21 @@ def test_submission_must_match_issue_repository():
             "1",
             "https://github.com/other/repo/pull/2",
             "https://gist.github.com/example/abcdef123",
+            PR_COMMIT,
+            GIST_REVISION,
         )
 
     submitted = contract.submit_work(
         "1",
         "https://github.com/example/repo/pull/2",
         "https://gist.github.com/example/abcdef123",
+        PR_COMMIT,
+        GIST_REVISION,
     )
     assert submitted["status"] == "SUBMITTED"
     assert submitted["worker"] == "0xWorker"
+    assert submitted["locked_pr_commit"] == PR_COMMIT
+    assert submitted["locked_gist_revision"] == GIST_REVISION
 
 
 def test_approved_submission_releases_escrow():
@@ -262,6 +292,7 @@ def test_approved_submission_releases_escrow():
         "outcome": "APPROVE",
         "evidence_quality": "ENOUGH",
         "ownership_verified": True,
+        "evidence_locked": True,
         "github_author": "example",
         "summary": "All acceptance criteria are supported by the pull request.",
         "unmet_criteria": [],
@@ -278,6 +309,8 @@ def test_approved_submission_releases_escrow():
         "1",
         "https://github.com/example/repo/pull/2",
         "https://gist.github.com/example/abcdef123",
+        PR_COMMIT,
+        GIST_REVISION,
     )
 
     result = contract.evaluate_submission("1")
@@ -303,6 +336,7 @@ def test_weak_evidence_requests_revision_then_sponsor_can_refund():
         "outcome": "APPROVE",
         "evidence_quality": "WEAK",
         "ownership_verified": True,
+        "evidence_locked": True,
         "github_author": "example",
         "summary": "The pull request page does not expose enough evidence.",
         "unmet_criteria": ["Passing tests are not visible"],
@@ -319,6 +353,8 @@ def test_weak_evidence_requests_revision_then_sponsor_can_refund():
         "1",
         "https://github.com/example/repo/pull/2",
         "https://gist.github.com/example/abcdef123",
+        PR_COMMIT,
+        GIST_REVISION,
     )
 
     judged = contract.evaluate_submission("1")
@@ -330,6 +366,53 @@ def test_weak_evidence_requests_revision_then_sponsor_can_refund():
     refunded = contract.cancel_bounty("1")
     assert refunded["status"] == "REFUNDED"
     assert transfers == [("0xSponsor", 10**18)]
+
+
+def test_changed_locked_evidence_cannot_release_escrow():
+    module = _load_module()
+    contract = _contract(module)
+    transfers = []
+
+    class Recipient:
+        def __init__(self, address):
+            self.address = address
+
+        def emit_transfer(self, value):
+            transfers.append((str(self.address), int(value)))
+
+    module._Recipient = Recipient
+    _Nondet.judgment = {
+        "outcome": "APPROVE",
+        "evidence_quality": "ENOUGH",
+        "ownership_verified": True,
+        "evidence_locked": False,
+        "github_author": "example",
+        "summary": "The visible PR head or Gist revision differs from the stored evidence lock.",
+        "unmet_criteria": ["Locked evidence changed after submission"],
+    }
+
+    _set_sender("0xSponsor", 10**18)
+    contract.create_bounty(
+        "Locked evidence bounty",
+        "https://github.com/example/repo/issues/1",
+        "Implement the issue requirements and include passing direct tests.",
+    )
+    _set_sender("0xWorker")
+    contract.submit_work(
+        "1",
+        "https://github.com/example/repo/pull/2",
+        "https://gist.github.com/example/abcdef123",
+        PR_COMMIT,
+        GIST_REVISION,
+    )
+
+    judged = contract.evaluate_submission("1")
+
+    assert judged["status"] == "REVISION_REQUESTED"
+    assert judged["locked_pr_commit"] == PR_COMMIT
+    assert judged["locked_gist_revision"] == GIST_REVISION
+    assert judged["unmet_criteria"] == ["Locked evidence changed after submission"]
+    assert transfers == []
 
 
 def test_worker_can_withdraw_submission_then_sponsor_can_refund():
@@ -356,6 +439,8 @@ def test_worker_can_withdraw_submission_then_sponsor_can_refund():
         "1",
         "https://github.com/example/repo/pull/2",
         "https://gist.github.com/example/abcdef123",
+        PR_COMMIT,
+        GIST_REVISION,
     )
 
     _set_sender("0xSponsor")
@@ -389,6 +474,8 @@ def test_sponsor_can_recover_stuck_submission_after_bounded_delay(monkeypatch):
         "1",
         "https://github.com/example/repo/pull/2",
         "https://gist.github.com/example/abcdef123",
+        PR_COMMIT,
+        GIST_REVISION,
     )
 
     _set_sender("0xSponsor")
@@ -432,6 +519,7 @@ def test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet():
         "outcome": "APPROVE",
         "evidence_quality": "ENOUGH",
         "ownership_verified": False,
+        "evidence_locked": True,
         "github_author": "real-author",
         "summary": "The PR qualifies, but the claimant does not control its author account.",
         "unmet_criteria": ["Ownership Gist belongs to a different GitHub account"],
@@ -448,6 +536,8 @@ def test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet():
         "1",
         "https://github.com/example/repo/pull/2",
         "https://gist.github.com/thief/abcdef123",
+        PR_COMMIT,
+        GIST_REVISION,
     )
 
     judged = contract.evaluate_submission("1")
