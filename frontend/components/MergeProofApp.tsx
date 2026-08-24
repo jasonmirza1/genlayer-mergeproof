@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { useWallet } from "@/lib/genlayer/wallet";
 import { useMergeProof } from "@/lib/hooks/useMergeProof";
 import type { Bounty, BountyStatus } from "@/lib/contracts/types";
-import { resolveGistRevision, resolvePullRequestCommit } from "@/lib/github/evidence";
+import { resolveGistRevision, resolvePullRequestMergeCommit } from "@/lib/github/evidence";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -131,19 +131,19 @@ function BountyRow({
         "MergeProof ownership proof",
         `Bounty: ${bounty.id}`,
         `Pull request: ${pullRequestUrl.trim()}`,
-        `Pull request commit: ${lockedPrCommit}`,
+        `Pull request merge commit: ${lockedPrCommit}`,
         `Wallet: ${address}`,
       ].join("\n")
-    : "Prepare the pull request commit to generate the ownership challenge.";
+    : "Prepare the merged pull request evidence to generate the ownership challenge.";
 
   const prepareOwnershipProof = async () => {
     if (!pullRequestValid) return;
     setLockingEvidence(true);
     try {
-      const commit = await resolvePullRequestCommit(pullRequestUrl);
+      const commit = await resolvePullRequestMergeCommit(pullRequestUrl);
       setLockedPrCommit(commit);
       setLockedGistRevision("");
-      toast.success("Pull request commit prepared", {
+      toast.success("Merged commit prepared", {
         description: "Copy the updated challenge into a public Gist owned by the PR author.",
       });
     } catch (error: any) {
@@ -158,13 +158,13 @@ function BountyRow({
     setLockingEvidence(true);
     try {
       const [currentCommit, gistRevision] = await Promise.all([
-        resolvePullRequestCommit(pullRequestUrl),
+        resolvePullRequestMergeCommit(pullRequestUrl),
         resolveGistRevision(ownershipProofUrl),
       ]);
       if (currentCommit !== lockedPrCommit) {
         setLockedPrCommit("");
         setLockedGistRevision("");
-        throw new Error("The PR head changed. Prepare a new ownership challenge and update the Gist.");
+        throw new Error("The final merged commit changed. Prepare a new ownership challenge and update the Gist.");
       }
       setLockedGistRevision(gistRevision);
       toast.success("Evidence locked", {
@@ -230,7 +230,7 @@ function BountyRow({
       {(bounty.locked_pr_commit || bounty.locked_gist_revision) && (
         <div className="evidence-lock-summary stored-locks">
           <div><LockKeyhole /><span>Stored evidence lock</span></div>
-          <p><span>PR commit</span><code>{bounty.locked_pr_commit || "Not locked"}</code></p>
+          <p><span>PR merge commit</span><code>{bounty.locked_pr_commit || "Not locked"}</code></p>
           <p><span>Gist revision</span><code>{bounty.locked_gist_revision || "Not locked"}</code></p>
         </div>
       )}

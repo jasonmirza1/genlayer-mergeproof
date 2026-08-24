@@ -18,8 +18,8 @@ MergeProof is a GitHub bounty escrow for work that cannot be verified by a simpl
 - Integration ownership-negative test: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/tests/integration/test_mergeproof_ownership.py
 - Live app: https://genlayer-mergeproof.vercel.app
 - Demo video: https://youtu.be/m0RhEOSz7jc
-- Current Bradbury contract: https://explorer-bradbury.genlayer.com/address/0xFA8B33103A53fA14f4a7147ac4C24d3aFf225FeB
-- Current Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0xac5f7deb293984c4ed31e30bcde307cc58b9a04caa8ba959235378273c06b26b
+- Current Bradbury contract: https://explorer-bradbury.genlayer.com/address/0x47d9e69867E0bDD3a6343261c18db12B275899bf
+- Current Bradbury deployment transaction: https://explorer-bradbury.genlayer.com/tx/0x0d028383b2faadadbd230c4cac15f9e1a19f762a502544aab684119742e6f151
 - Finalized ownership-bound settlement transaction: https://explorer-bradbury.genlayer.com/tx/0x55f6f0feb42c0bda1284ea96a3b8e6e1ed838a826171315e6aacee5944406c1e
 - Previous corrected ownership deployment: https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0
 - Corrected ownership settlement on the previous corrected deployment: https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5

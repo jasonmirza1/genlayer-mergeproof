@@ -108,6 +108,11 @@ class MergeProof(gl.Contract):
             raise gl.vm.UserError(label + " must be a full 40-character Git SHA")
         return normalized
 
+    def _commit_url(self, pull_request_url: str, commit: str) -> str:
+        canonical, _repo = self._parse_github_url(pull_request_url, "pull")
+        repository_url = canonical.rsplit("/pull/", 1)[0]
+        return repository_url + "/commit/" + commit
+
     def _as_string_list(self, value) -> list:
         if isinstance(value, list):
             return [str(item)[0:240] for item in value[0:6]]
@@ -159,6 +164,10 @@ class MergeProof(gl.Contract):
         def collect_and_judge() -> dict:
             issue_page = gl.nondet.web.render(issue_url, mode="text")
             pull_request_page = gl.nondet.web.render(pull_request_url, mode="text")
+            locked_commit_url = self._commit_url(
+                pull_request_url, locked_pr_commit
+            )
+            locked_commit_page = gl.nondet.web.render(locked_commit_url, mode="text")
             locked_ownership_url = ownership_proof_url + "/" + locked_gist_revision
             ownership_page = gl.nondet.web.render(locked_ownership_url, mode="text")
 
@@ -185,8 +194,14 @@ Issue evidence:
 GitHub pull request URL:
 {pull_request_url}
 
-Locked pull-request head commit:
+Locked final merge commit:
 {locked_pr_commit}
+
+Locked merge-commit URL:
+{locked_commit_url}
+
+Locked merge-commit evidence:
+{locked_commit_page[0:10000]}
 
 Pull request evidence:
 {pull_request_page[0:14000]}
@@ -203,7 +218,7 @@ Ownership proof evidence:
 Required ownership challenge values:
 - Bounty: {bounty_id}
 - Pull request: {pull_request_url}
-- Pull request commit: {locked_pr_commit}
+- Pull request merge commit: {locked_pr_commit}
 - Wallet: {claimant_wallet}
 
 Return only JSON with exactly these keys:
@@ -221,11 +236,11 @@ Decision rules:
 - APPROVE only when the visible issue and pull request evidence materially
   demonstrate that the pull request is merged and every explicit acceptance
   criterion was completed.
-- APPROVE only when the exact locked pull-request commit is visibly the commit
-  merged for the pull request and the ownership evidence comes from the exact
-  locked Gist revision. A force-pushed PR, a different merged commit, an edited
-  Gist, or evidence that does not expose either lock must set evidence_locked
-  to false and REVISION.
+- APPROVE only when the exact locked final merge commit is visibly the commit
+  produced by the merged pull request, its immutable commit page is available,
+  and the ownership evidence comes from the exact locked Gist revision. A
+  different merged commit, edited Gist, or evidence that does not expose either
+  lock must set evidence_locked to false and REVISION.
 - APPROVE only when the ownership Gist is visibly owned by the same GitHub
   account that authored the pull request and contains all four exact challenge
   values above. A Gist owned by any other account, a wallet mismatch, or an
@@ -258,6 +273,23 @@ because they share valid JSON structure.
 """,
         )
         return self._normalize_judgment(judgment)
+
+    def _enforce_github_owner(self, judgment: dict, ownership_proof_url: str) -> dict:
+        _canonical, proof_owner = self._parse_gist_url(ownership_proof_url)
+        github_author = str(judgment.get("github_author", "")).strip().lower()
+        if github_author == proof_owner:
+            return judgment
+
+        judgment["outcome"] = "REVISION"
+        judgment["ownership_verified"] = False
+        judgment["summary"] = (
+            "The ownership Gist owner does not match the pull-request author, "
+            "so this claimant cannot receive escrow."
+        )
+        mismatch = "Ownership Gist owner must match the pull-request author"
+        if mismatch not in judgment["unmet_criteria"]:
+            judgment["unmet_criteria"].append(mismatch)
+        return judgment
 
     def _to_dict(self, bounty: Bounty) -> dict:
         submitted_at = int(bounty.submitted_at)
@@ -402,6 +434,9 @@ because they share valid JSON structure.
             str(bounty.locked_gist_revision),
             str(bounty.id),
             str(bounty.worker),
+        )
+        judgment = self._enforce_github_owner(
+            judgment, str(bounty.ownership_proof_url)
         )
         bounty.claimant_github = judgment["github_author"]
         bounty.evidence_summary = judgment["summary"]

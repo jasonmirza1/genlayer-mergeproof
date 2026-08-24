@@ -60,7 +60,7 @@ class _Web:
         if "gist.github.com" in url:
             return (
                 "Gist by example. Bounty: 1. Pull request: example/repo/pull/2. "
-                f"Pull request commit: {PR_COMMIT}. Wallet: 0xWorker."
+                f"Pull request merge commit: {PR_COMMIT}. Wallet: 0xWorker."
             )
         return "Pull request changes validation code and adds passing tests."
 
@@ -159,6 +159,9 @@ def test_normalizes_github_issue_and_pull_request_urls():
     assert issue == "https://github.com/Example/Repo/issues/12"
     assert pull == "https://github.com/example/repo/pull/44"
     assert issue_repo == pull_repo == "example/repo"
+    assert contract._commit_url(pull, PR_COMMIT) == (
+        "https://github.com/example/repo/commit/" + PR_COMMIT
+    )
 
     gist, gist_owner = contract._parse_gist_url(
         "https://gist.github.com/Example/aBcDeF123#file-proof-txt"
@@ -387,7 +390,7 @@ def test_changed_locked_evidence_cannot_release_escrow():
         "ownership_verified": True,
         "evidence_locked": False,
         "github_author": "example",
-        "summary": "The visible PR head or Gist revision differs from the stored evidence lock.",
+        "summary": "The visible merge commit or Gist revision differs from the stored evidence lock.",
         "unmet_criteria": ["Locked evidence changed after submission"],
     }
 
@@ -518,11 +521,11 @@ def test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet():
     _Nondet.judgment = {
         "outcome": "APPROVE",
         "evidence_quality": "ENOUGH",
-        "ownership_verified": False,
+        "ownership_verified": True,
         "evidence_locked": True,
         "github_author": "real-author",
-        "summary": "The PR qualifies, but the claimant does not control its author account.",
-        "unmet_criteria": ["Ownership Gist belongs to a different GitHub account"],
+        "summary": "The pull request and submitted ownership evidence qualify.",
+        "unmet_criteria": [],
     }
 
     _set_sender("0xSponsor", 10**18)
@@ -546,7 +549,10 @@ def test_stolen_pull_request_cannot_be_claimed_by_unrelated_wallet():
     assert judged["worker"] == "0xThief"
     assert judged["claimant_github"] == "real-author"
     assert judged["amount"] == 10**18
-    assert "does not control" in judged["evidence_summary"]
+    assert "does not match" in judged["evidence_summary"]
+    assert judged["unmet_criteria"] == [
+        "Ownership Gist owner must match the pull-request author"
+    ]
     assert transfers == []
 
     _set_sender("0xThief")

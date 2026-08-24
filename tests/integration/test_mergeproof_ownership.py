@@ -22,6 +22,7 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
     issue_url = "https://github.com/example/mergeproof-fixture/issues/1"
     pull_request_url = "https://github.com/example/mergeproof-fixture/pull/2"
     ownership_proof_url = "https://gist.github.com/thief/abcdef123"
+    merge_commit = "1" * 40
     gist_revision = "2" * 40
     contract_path = Path(__file__).parents[2] / "contracts" / "mergeproof.py"
 
@@ -39,7 +40,7 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
 
     worker_contract = contract.connect(accounts[1])
     submitted = worker_contract.submit_work(
-        args=["1", pull_request_url, ownership_proof_url, "1" * 40, gist_revision]
+        args=["1", pull_request_url, ownership_proof_url, merge_commit, gist_revision]
     ).transact()
     assert tx_execution_succeeded(submitted)
 
@@ -50,11 +51,11 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
                     {
                         "outcome": "APPROVE",
                         "evidence_quality": "ENOUGH",
-                        "ownership_verified": False,
+                        "ownership_verified": True,
                         "evidence_locked": True,
                         "github_author": "real-author",
-                        "summary": "The PR qualifies, but the claimant does not control the author account.",
-                        "unmet_criteria": ["Ownership Gist belongs to a different GitHub account"],
+                        "summary": "The pull request and submitted ownership evidence qualify.",
+                        "unmet_criteria": [],
                     }
                 )
             },
@@ -65,6 +66,11 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
             "nondet_web_request": {
                 issue_url: {"method": "GET", "status": 200, "body": "Issue evidence"},
                 pull_request_url: {"method": "GET", "status": 200, "body": "Merged pull request evidence"},
+                "https://github.com/example/mergeproof-fixture/commit/" + merge_commit: {
+                    "method": "GET",
+                    "status": 200,
+                    "body": "Immutable final merge commit evidence",
+                },
                 ownership_proof_url + "/" + gist_revision: {
                     "method": "GET",
                     "status": 200,
@@ -85,3 +91,5 @@ def test_mismatched_ownership_gist_cannot_release_funds(default_account, account
     )
     assert state["status"] == "REVISION_REQUESTED"
     assert state["worker"] == accounts[1].address
+    assert state["claimant_github"] == "real-author"
+    assert "does not match" in state["evidence_summary"]

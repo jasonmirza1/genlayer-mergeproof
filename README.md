@@ -11,7 +11,7 @@ This is a trust problem rather than a request for a better AI answer: an irrever
 ## Workflow
 
 1. A sponsor creates a bounty from a public GitHub issue, writes specific acceptance criteria, and escrows GEN.
-2. A developer freezes the pull request's full head commit, then creates a public Gist from the pull-request author's GitHub account containing the app-generated bounty, PR, locked commit, and wallet ownership challenge.
+2. After the pull request is merged, a developer freezes GitHub's full final merge commit, then creates a public Gist from the pull-request author's GitHub account containing the app-generated bounty, PR, locked commit, and wallet ownership challenge.
 3. The developer locks the Gist's full revision and submits the public pull request, ownership proof, PR commit, and Gist revision from the wallet named in that challenge.
 4. Any user can trigger evaluation. Validators independently fetch the issue, pull request, and ownership Gist.
 5. Equivalent validator judgments release escrow only when the work qualifies, the locked commit is the merged commit, the exact locked Gist revision is reviewed, the Gist owner is the PR author, and the challenge matches the claimant wallet. Missing, changed, or mismatched evidence requests revision.
@@ -36,7 +36,7 @@ An unrelated wallet can submit a qualifying PR URL, but it cannot release escrow
 
 The Evidence Lock milestone closes the time-of-check/time-of-use gap between submission and validator review. Before `submit_work`, the frontend resolves and displays two immutable GitHub identifiers:
 
-- the pull request's full 40-character head commit;
+- the pull request's full 40-character final merge commit;
 - the ownership Gist's full 40-character revision.
 
 Both values are stored with the bounty submission. Validators review the revision-specific Gist URL and must confirm that the stored PR commit is the commit visibly merged by the pull request. A force-push, different merged commit, edited Gist, missing lock, or unverifiable lock forces `REVISION_REQUESTED` and cannot release escrow. The direct regression `test_changed_locked_evidence_cannot_release_escrow` proves that even an otherwise approving judgment transfers no funds when `evidence_locked` is false.
@@ -48,8 +48,8 @@ Both values are stored with the bounty submission. Validators review the revisio
 - Integration negative test: [`tests/integration/test_mergeproof_ownership.py`](tests/integration/test_mergeproof_ownership.py)
 - Frontend: <https://genlayer-mergeproof.vercel.app>
 - Bradbury network: chain ID `4221`
-- Current Bradbury Evidence Lock contract: [`0xC690d00c00Be2087d47188D9eEE50A64C0b62E4f`](https://explorer-bradbury.genlayer.com/address/0xC690d00c00Be2087d47188D9eEE50A64C0b62E4f)
-- Current deployment transaction: [`0xe5e8e0f410dfbe4512321abd65972a675dd440345fe51e7bb7e325664628060f`](https://explorer-bradbury.genlayer.com/tx/0xe5e8e0f410dfbe4512321abd65972a675dd440345fe51e7bb7e325664628060f)
+- Current Bradbury Evidence Lock contract: [`0x47d9e69867E0bDD3a6343261c18db12B275899bf`](https://explorer-bradbury.genlayer.com/address/0x47d9e69867E0bDD3a6343261c18db12B275899bf)
+- Current deployment transaction: [`0x0d028383b2faadadbd230c4cac15f9e1a19f762a502544aab684119742e6f151`](https://explorer-bradbury.genlayer.com/tx/0x0d028383b2faadadbd230c4cac15f9e1a19f762a502544aab684119742e6f151)
 - Finalized ownership-bound settlement: [`0x55f6f0feb42c0bda1284ea96a3b8e6e1ed838a826171315e6aacee5944406c1e`](https://explorer-bradbury.genlayer.com/tx/0x55f6f0feb42c0bda1284ea96a3b8e6e1ed838a826171315e6aacee5944406c1e)
 - Previous corrected ownership deployment: [`0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0`](https://explorer-bradbury.genlayer.com/address/0x746C51C257dF5e4b34466BAE1ce692e3fe87f8d0)
 - Verified ownership settlement on the previous corrected deployment: [`0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5`](https://explorer-bradbury.genlayer.com/tx/0x2a67669764456a7cff9fcb7279fb3ef7933e585202b5dcfa1da8e2b3ce5cb2f5)
@@ -58,7 +58,7 @@ Both values are stored with the bounty submission. Validators review the revisio
 
 ![MergeProof paid bounty and validator judgment](docs/mergeproof-paid.png)
 
-Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership; and `0x6312A9ED01a500f752C1F9d328473a6572b135bA` was superseded by deterministic recovery timing and full accepted-to-finalized frontend handling. The `0x746C...` deployment is retained only as prior ownership-settlement evidence. The `0xFA8B...` deployment added bounded recovery and finality-aware payment handling but predates immutable evidence locks. The current Evidence Lock deployment is `0xC690...`.
+Previous Bradbury deployments are deprecated: `0xce85AB1F823e97a5E35ae07BAf205c1368B2F56a` captured storage inside nondeterministic mode; `0x7b504D51bB0C91EFC2ea6c35A50Eb6bE5f965aaf` was superseded by withdrawal recovery; `0x5610791050A2D7255F1CBD0802fBd9e41A5F205c` did not bind claimant wallets to GitHub author ownership; and `0x6312A9ED01a500f752C1F9d328473a6572b135bA` was superseded by deterministic recovery timing and full accepted-to-finalized frontend handling. The `0x746C...` deployment is retained only as prior ownership-settlement evidence. The `0xFA8B...` deployment added bounded recovery and finality-aware payment handling but predates immutable evidence locks. The `0xC690...` deployment introduced evidence locks but used the pull-request head SHA, which is not stable across every GitHub merge strategy. The current `0x47d9...` deployment locks the final merge commit and adds deterministic Gist-owner enforcement.
 
 ### State lifecycle
 

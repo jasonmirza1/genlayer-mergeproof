@@ -25,14 +25,19 @@ async function githubJson(url: string): Promise<any> {
   return response.json();
 }
 
-export async function resolvePullRequestCommit(pullRequestUrl: string): Promise<string> {
+export async function resolvePullRequestMergeCommit(pullRequestUrl: string): Promise<string> {
   const [owner, repo, resource, number] = githubPath(pullRequestUrl, "github.com", 4);
   if (resource !== "pull" || !/^\d+$/.test(number)) {
     throw new Error("Use a numbered GitHub pull request URL.");
   }
   const data = await githubJson(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}`);
-  const sha = String(data?.head?.sha ?? "").toLowerCase();
-  if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("GitHub did not return a full PR head commit.");
+  if (data?.merged !== true) {
+    throw new Error("The pull request must be merged before its final evidence can be locked.");
+  }
+  const sha = String(data?.merge_commit_sha ?? "").toLowerCase();
+  if (!/^[0-9a-f]{40}$/.test(sha)) {
+    throw new Error("GitHub did not return the final merged commit.");
+  }
   return sha;
 }
 
