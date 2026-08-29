@@ -43,6 +43,20 @@ The Evidence Lock milestone closes the time-of-check/time-of-use gap between sub
 
 Both values are stored with the bounty submission. Validators review the revision-specific Gist URL and must confirm that the stored PR commit is the commit visibly merged by the pull request. A force-push, different merged commit, edited Gist, missing lock, or unverifiable lock forces `REVISION_REQUESTED` and cannot release escrow. The direct regression `test_changed_locked_evidence_cannot_release_escrow` proves that even an otherwise approving judgment transfers no funds when `evidence_locked` is false.
 
+## Consensus Recovery & Audit milestone
+
+The post-approval Consensus Recovery & Audit milestone is documented in [`docs/CONSENSUS_RECOVERY_AUDIT.md`](docs/CONSENSUS_RECOVERY_AUDIT.md). It adds a browser-persistent lifecycle ledger for every MergeProof write action and keeps `ACCEPTED` visibly separate from `FINALIZED`.
+
+The new Audit workspace:
+
+- records submission, validator acceptance, finalization, deterministic failure, and network-undetermined outcomes;
+- links each transaction to the Bradbury explorer and preserves its event timeline;
+- gives timeout-aware recovery guidance instead of encouraging blind judgment retries;
+- exports reviewer-ready JSON and Markdown evidence with the finalized bounty snapshot;
+- scopes records to the connected wallet and deployed contract without sending browser data to a backend.
+
+Audit records are supporting operational evidence. Bradbury explorer transactions and finalized contract state remain authoritative.
+
 ## Contract
 
 - Source: [`contracts/mergeproof.py`](contracts/mergeproof.py)
@@ -92,6 +106,7 @@ Open <http://127.0.0.1:3000>. Set `NEXT_PUBLIC_CONTRACT_ADDRESS` in the uncommit
 ```powershell
 npm run build
 npm run lint
+npm --workspace frontend run test:audit
 python -m pytest tests\direct\test_mergeproof.py -v
 genvm-lint check contracts\mergeproof.py
 ```

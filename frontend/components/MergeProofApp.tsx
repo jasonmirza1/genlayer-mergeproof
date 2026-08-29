@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  Activity,
   ArrowUpRight,
   CheckCircle2,
   Clock3,
@@ -22,12 +23,15 @@ import { formatEther, parseEther } from "viem";
 import { toast } from "sonner";
 import { useWallet } from "@/lib/genlayer/wallet";
 import { useMergeProof } from "@/lib/hooks/useMergeProof";
+import { useTransactionAudit } from "@/lib/hooks/useTransactionAudit";
 import type { Bounty, BountyStatus } from "@/lib/contracts/types";
+import { classifyAuditFailure, type AuditAction } from "@/lib/audit/transactionAudit";
 import { resolveGistRevision, resolvePullRequestMergeCommit } from "@/lib/github/evidence";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
+import { TransactionAuditDashboard } from "./TransactionAuditDashboard";
 
 const EXPLORER_URL = "https://explorer-bradbury.genlayer.com";
 
@@ -386,7 +390,8 @@ function BountyRow({
 export function MergeProofApp() {
   const { address, isConnected, isOnCorrectNetwork } = useWallet();
   const { contractAddress, bounties, createBounty, submitWork, evaluate, withdraw, cancel, recover } = useMergeProof(address);
-  const [view, setView] = useState<"bounties" | "create">("bounties");
+  const audit = useTransactionAudit(contractAddress, address);
+  const [view, setView] = useState<"bounties" | "create" | "audit">("bounties");
   const [title, setTitle] = useState("");
   const [issueUrl, setIssueUrl] = useState("");
   const [criteria, setCriteria] = useState("");
@@ -394,6 +399,11 @@ export function MergeProofApp() {
   const [lastTx, setLastTx] = useState("");
   const [finalityPendingId, setFinalityPendingId] = useState<string | null>(null);
   const [transactionPhase, setTransactionPhase] = useState<"idle" | "submitted" | "accepted">("idle");
+  const activeOperation = useRef<{ action: AuditAction; bountyId: string | null }>({
+    action: "CREATE_BOUNTY",
+    bountyId: null,
+  });
+  const activeTransactionHash = useRef("");
 
   const items = bounties.data ?? [];
   const stats = useMemo(() => ({
@@ -404,29 +414,62 @@ export function MergeProofApp() {
   const busy = createBounty.isPending || submitWork.isPending || evaluate.isPending || withdraw.isPending || cancel.isPending || recover.isPending;
   const issueUrlValid = isNumberedGitHubUrl(issueUrl, "issues");
 
+  const beginOperation = (action: AuditAction, bountyId?: string | null) => {
+    activeOperation.current = { action, bountyId: bountyId ?? null };
+    activeTransactionHash.current = "";
+  };
+
   const capture = (hash: string) => {
+    activeTransactionHash.current = hash;
     setLastTx(hash);
     setFinalityPendingId(null);
     setTransactionPhase("submitted");
+    audit.record({
+      ...activeOperation.current,
+      transactionHash: hash,
+      phase: "SUBMITTED",
+      detail: "Transaction submitted; waiting for validator consensus.",
+    });
     toast.info("Transaction submitted", { description: "Waiting for GenLayer consensus." });
   };
 
   const markAccepted = (hash: string, bountyId?: string) => {
+    activeTransactionHash.current = hash;
     setLastTx(hash);
     setFinalityPendingId(bountyId ?? null);
     setTransactionPhase("accepted");
+    audit.record({
+      ...activeOperation.current,
+      bountyId: bountyId ?? activeOperation.current.bountyId,
+      transactionHash: hash,
+      phase: "ACCEPTED",
+      detail: "Validator consensus accepted; waiting for the Bradbury finality window.",
+    });
     toast.info("Consensus accepted", { description: "Waiting for the Bradbury finality window." });
   };
 
   const finish = (receipt: any, message: string) => {
-    const hash = transactionHash(receipt);
+    const hash = transactionHash(receipt) || activeTransactionHash.current;
     if (hash) setLastTx(hash);
+    audit.record({
+      ...activeOperation.current,
+      transactionHash: hash,
+      phase: "FINALIZED",
+      detail: message,
+    });
     setFinalityPendingId(null);
     setTransactionPhase("idle");
     toast.success(message);
   };
 
   const fail = (error: any) => {
+    const phase = classifyAuditFailure(error);
+    audit.record({
+      ...activeOperation.current,
+      transactionHash: activeTransactionHash.current,
+      phase,
+      detail: error?.message || "The wallet or network did not return a confirmed outcome.",
+    });
     setFinalityPendingId(null);
     setTransactionPhase("idle");
     toast.error("Transaction failed", {
@@ -442,6 +485,7 @@ export function MergeProofApp() {
       return;
     }
     try {
+      beginOperation("CREATE_BOUNTY");
       const value = parseEther(amount || "0");
       const receipt = await createBounty.mutateAsync({
         title,
@@ -506,13 +550,23 @@ export function MergeProofApp() {
         <div className="segmented-control" aria-label="Workspace view">
           <button className={view === "bounties" ? "active" : ""} onClick={() => setView("bounties")}>Bounties</button>
           <button className={view === "create" ? "active" : ""} onClick={() => setView("create")}><Plus /> New bounty</button>
+          <button className={view === "audit" ? "active" : ""} onClick={() => setView("audit")}>
+            <Activity /> Audit <span className="audit-count">{audit.summary.totalAttempts}</span>
+          </button>
         </div>
-        <Button variant="outline" size="icon" onClick={() => bounties.refetch()} title="Refresh bounties">
+        <Button variant="outline" size="icon" onClick={() => bounties.refetch()} title="Refresh finalized ledger">
           <RefreshCw className={bounties.isFetching ? "animate-spin" : ""} />
         </Button>
       </div>
 
-      {view === "create" ? (
+      {view === "audit" ? (
+        <TransactionAuditDashboard
+          entries={audit.entries}
+          contractAddress={contractAddress}
+          walletAddress={address}
+          bounties={items}
+        />
+      ) : view === "create" ? (
         <section className="create-workspace">
           <div className="section-heading">
             <div><span className="section-number">01</span><h2>Fund a verifiable bounty</h2></div>
@@ -585,6 +639,7 @@ export function MergeProofApp() {
                   finalityPending={finalityPendingId === bounty.id}
                   onSubmit={async (id, pullRequestUrl, ownershipProofUrl, lockedPrCommit, lockedGistRevision) => {
                     try {
+                      beginOperation("SUBMIT_WORK", id);
                       const receipt = await submitWork.mutateAsync({
                         id,
                         pullRequestUrl,
@@ -599,6 +654,7 @@ export function MergeProofApp() {
                   }}
                   onEvaluate={async (id) => {
                     try {
+                      beginOperation("RUN_JUDGMENT", id);
                       const receipt = await evaluate.mutateAsync({
                         id,
                         onSubmitted: capture,
@@ -609,6 +665,7 @@ export function MergeProofApp() {
                   }}
                   onWithdraw={async (id) => {
                     try {
+                      beginOperation("WITHDRAW_SUBMISSION", id);
                       const receipt = await withdraw.mutateAsync({
                         id,
                         onSubmitted: capture,
@@ -619,6 +676,7 @@ export function MergeProofApp() {
                   }}
                   onCancel={async (id) => {
                     try {
+                      beginOperation("REFUND_ESCROW", id);
                       const receipt = await cancel.mutateAsync({
                         id,
                         onSubmitted: capture,
@@ -629,6 +687,7 @@ export function MergeProofApp() {
                   }}
                   onRecover={async (id) => {
                     try {
+                      beginOperation("RECOVER_SUBMISSION", id);
                       const receipt = await recover.mutateAsync({
                         id,
                         onSubmitted: capture,
