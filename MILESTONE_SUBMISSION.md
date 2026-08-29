@@ -1,46 +1,73 @@
-# MergeProof Evidence Lock Milestone
+# MergeProof Consensus Recovery & Audit Milestone
 
-## Contribution
+## Portal fields
 
-**Type:** Builder -> Milestones
+**Contribution type:** Builder -> Milestones
 
-**Title:** MergeProof Evidence Lock - Immutable PR and Ownership Proof Review
+**Linked project:** MergeProof
 
-## Description
+**Contribution date:** August 29, 2026
 
-MergeProof now locks the exact GitHub evidence that validators must review. After merge, the frontend resolves GitHub's full final merge commit, embeds it in the claimant's wallet-ownership challenge, and then resolves the ownership Gist's exact revision. Both immutable identifiers are stored by the Intelligent Contract. Validators inspect the immutable merge-commit page and revision-specific Gist. The contract also deterministically rejects a Gist URL owner that differs from the validator-reported pull-request author, even if a validator response otherwise says APPROVE. Changed evidence, missing locks, or mismatched ownership forces revision and cannot release escrow.
+**Title:** MergeProof - Consensus Recovery & Audit Dashboard
 
-## Meaningful Change
+**Notes / Description (under 1,000 characters):**
 
-- Binds every submission to a full 40-character final merge commit and Gist revision.
-- Reviews the immutable revision-specific Gist instead of mutable latest content.
-- Requires validator agreement that both evidence locks match the reviewed outcome.
-- Adds a two-step frontend flow to prepare the ownership challenge and lock evidence before signing.
-- Displays stored lock identifiers for users and reviewers.
-- Adds negative regression coverage proving changed evidence cannot release escrow.
-- Preserves claimant ownership verification, bounded recovery, and finalized-only paid status.
+MergeProof now includes a persistent Consensus Recovery & Audit workspace for every contract write. It records submission, validator acceptance, finalization, deterministic failure, and network-undetermined outcomes while keeping ACCEPTED visibly separate from FINALIZED. Each entry preserves the action, bounty ID, wallet, contract, Bradbury explorer link, timestamps, details, and complete lifecycle history. Timeout-aware guidance tells users to inspect explorer and finalized contract state before retrying, preventing blind duplicate judgments. Reviewers can export JSON or Markdown evidence containing transaction histories, outcome counts, explorer links, and the current finalized bounty snapshot. Records are capped, browser-local, and scoped to the connected wallet and contract. Added 4 lifecycle/export tests; TypeScript, production build, 21 contract regressions, and GenVM lint all pass. Implemented and deployed after MergeProof approval.
 
-## Evidence
+## Evidence links
 
-- Repository: https://github.com/jasonmirza1/genlayer-mergeproof
-- Intelligent Contract: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/contracts/mergeproof.py
-- Direct tests: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/tests/direct/test_mergeproof.py
-- Frontend evidence resolver: https://github.com/jasonmirza1/genlayer-mergeproof/blob/main/frontend/lib/github/evidence.ts
-- Live app: https://genlayer-mergeproof.vercel.app
-- Bradbury contract: https://explorer-bradbury.genlayer.com/address/0x47d9e69867E0bDD3a6343261c18db12B275899bf
-- Deployment transaction: https://explorer-bradbury.genlayer.com/tx/0x0d028383b2faadadbd230c4cac15f9e1a19f762a502544aab684119742e6f151
-- Locked-evidence settlement transaction: add after the corrected deployment is exercised end to end.
-- Updated demo video: record after the corrected settlement reaches finality.
+Add these as separate evidence items:
 
-## Reviewer Path
+1. **GitHub commit**
+   https://github.com/jasonmirza1/genlayer-mergeproof/commit/dabcfc5f3c20257e5ae741b61b5aaae65fd52087
 
-1. Inspect `submit_work` and confirm it validates and stores both full Git SHAs.
-2. Inspect `_judge_submission` and confirm it fetches the revision-specific Gist and requires the locked PR commit to be the merged commit.
-3. Inspect the comparative principle and confirm validators must agree that both stored evidence locks match.
-4. Run `python -m pytest tests\direct\test_mergeproof.py -v` and inspect `test_changed_locked_evidence_cannot_release_escrow`.
-5. Run `genvm-lint check contracts\mergeproof.py`, `npm run lint`, and `npm run build`.
-6. In the live app, prepare a PR commit, copy the generated challenge to a public Gist, lock the Gist revision, and confirm both immutable values appear before signing and in the submitted bounty.
+2. **Before/after comparison (approved baseline to milestone)**
+   https://github.com/jasonmirza1/genlayer-mergeproof/compare/d4891af471411126cf16a6944a3f780f016425e0...dabcfc5f3c20257e5ae741b61b5aaae65fd52087
 
-## Deployment Status
+3. **Live deployed app**
+   https://genlayer-mergeproof.vercel.app
 
-The implementation and local verification are complete. The corrected Evidence Lock contract is deployed and verified on Bradbury. An end-to-end locked-evidence settlement and updated demo recording remain to be added as evidence.
+4. **Milestone architecture and verification document**
+   https://github.com/jasonmirza1/genlayer-mergeproof/blob/dabcfc5f3c20257e5ae741b61b5aaae65fd52087/docs/CONSENSUS_RECOVERY_AUDIT.md
+
+5. **Audit lifecycle tests**
+   https://github.com/jasonmirza1/genlayer-mergeproof/blob/dabcfc5f3c20257e5ae741b61b5aaae65fd52087/frontend/tests/transactionAudit.test.ts
+
+6. **Audit engine**
+   https://github.com/jasonmirza1/genlayer-mergeproof/blob/dabcfc5f3c20257e5ae741b61b5aaae65fd52087/frontend/lib/audit/transactionAudit.ts
+
+7. **Audit dashboard**
+   https://github.com/jasonmirza1/genlayer-mergeproof/blob/dabcfc5f3c20257e5ae741b61b5aaae65fd52087/frontend/components/TransactionAuditDashboard.tsx
+
+## Reviewer path
+
+1. Open the live app and select **Audit**.
+2. Confirm the summary treats **Accepted, not final** and **Finalized** as different outcomes.
+3. Inspect the audit engine and verify events for one transaction hash merge into one bounded record.
+4. Inspect the dashboard and verify JSON/Markdown exports include the finalized bounty snapshot and explorer links.
+5. Run:
+
+```powershell
+cd frontend
+npm run test:audit
+npm run lint
+npm run build
+cd ..
+python -m pytest tests\direct\test_mergeproof.py -v
+python -X utf8 -m genvm_linter.cli check contracts\mergeproof.py
+```
+
+## Verified results
+
+- Audit lifecycle/export tests: **4 passed**
+- Contract regression tests: **21 passed**
+- TypeScript: **passed**
+- Production build: **passed**
+- GenVM lint and contract validation: **passed**
+- Desktop and 390px mobile visual checks: **passed**
+- Live production check: **passed**, no browser console errors
+- Vercel deployment: `dpl_CTdUVaDwrdDraAeNWHx2MbVUC5L1` (`READY`)
+
+## Scope note
+
+This milestone is new work committed on August 29, 2026, after MergeProof was approved on August 25, 2026. It does not reuse the pre-approval Evidence Lock implementation as milestone work, change payout rules, rerun judgment, recreate a bounty, withdraw a submission, create a Gist, or redeploy the unchanged Intelligent Contract.
